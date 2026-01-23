@@ -24,7 +24,7 @@ This guide provides a repeatable development process for building the FCIS Platf
 #### 1. Start Your Work Session
 
 ```bash
-# Pull latest changes
+# Pull latest changes from main
 git checkout main
 git pull origin main
 
@@ -34,6 +34,8 @@ git checkout -b feature/your-feature-name
 # Verify you're on the right branch
 git branch
 ```
+
+**Note:** We use a simplified workflow with `main` as the primary branch. Feature branches are created from and merged back into `main`.
 
 #### 2. Understand the Task
 
@@ -139,44 +141,45 @@ Use descriptive branch names with prefixes:
 ### Branch Strategy
 
 ```
-main (production-ready code)
-  └── develop (integration branch)
-      ├── feature/level-editor
-      ├── feature/graphics-system
-      ├── fix/camera-bug
-      └── docs/api-guide
+main (primary branch - production-ready code)
+  ├── feature/level-editor
+  ├── feature/graphics-system
+  ├── fix/camera-bug
+  └── docs/api-guide
 ```
 
 **Workflow:**
-1. Create feature branch from `develop`
+1. Create feature branch from `main`
 2. Work on feature branch
-3. Create PR to merge into `develop`
-4. After testing, merge `develop` into `main`
+3. Create PR to merge into `main`
+4. After review and merge, delete feature branch
+
+**Simplified Approach:** We use `main` as the primary branch to keep the workflow simple and straightforward.
 
 ### Branch Lifecycle
 
 ```bash
-# 1. Start from develop
-git checkout develop
-git pull origin develop
+# 1. Start from main
+git checkout main
+git pull origin main
 
 # 2. Create feature branch
 git checkout -b feature/my-feature
 
 # 3. Work on feature (make commits)
 
-# 4. Keep branch updated with develop
-git checkout develop
-git pull origin develop
+# 4. Keep branch updated with main (if needed)
+git checkout main
+git pull origin main
 git checkout feature/my-feature
-git merge develop  # or git rebase develop
+git merge main  # or git rebase main
 
 # 5. Push and create PR
 git push origin feature/my-feature
 
 # 6. After PR is merged, delete local branch
-git checkout develop
-git pull origin develop
+git checkout main
+git pull origin main
 git branch -d feature/my-feature
 ```
 
@@ -603,8 +606,8 @@ Before requesting review, check:
 
 1. **Check for Updates**
    ```bash
-   git checkout develop
-   git pull origin develop
+   git checkout main
+   git pull origin main
    ```
 
 2. **Review Today's Tasks**
@@ -698,7 +701,7 @@ npm run test -- --reporter=verbose
 git fetch origin
 
 # Rebase your branch
-git rebase origin/develop
+git rebase origin/main
 
 # Resolve conflicts, then
 git add .

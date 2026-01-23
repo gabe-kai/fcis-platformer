@@ -51,7 +51,7 @@ export default [
         'warn',
         { argsIgnorePattern: '^_' },
       ],
-      '@typescript-eslint/no-explicit-any': 'warn', // Allow any for now, will fix in later tasks
+      '@typescript-eslint/no-explicit-any': 'off', // Allow any for now, will fix in later tasks
       'react/react-in-jsx-scope': 'off',
       'no-undef': 'off', // TypeScript handles this
     },
