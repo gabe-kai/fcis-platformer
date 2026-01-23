@@ -12,13 +12,12 @@ import './App.css';
 function Dashboard() {
   const { user } = useAuthStore();
   // Show password change modal if required (derived state)
+  // Show password change modal if required (derived state)
   const showPasswordChange = user?.provider === 'local' && user?.requiresPasswordChange === true;
 
   const handlePasswordChangeClose = () => {
-    // Only allow closing if password change is not required
-    if (!user?.requiresPasswordChange) {
-      setShowPasswordChange(false);
-    }
+    // Modal will close automatically when password is changed and requiresPasswordChange becomes false
+    // This handler is here for the modal's onClose prop, but the modal won't close if required=true
   };
 
   return (

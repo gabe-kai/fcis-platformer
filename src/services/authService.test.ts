@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { authService, User } from './authService';
+import { authService } from './authService';
+import type { User } from '@/models/User';
 
 describe('AuthService', () => {
   beforeEach(() => {

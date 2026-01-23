@@ -1,14 +1,9 @@
 import { logger } from '@/utils/logger';
+import type { User, CreateUserData } from '@/models/User';
+import { createUser } from '@/models/User';
 
-// User interface - will be replaced with proper User model in Task 3
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  avatar?: string;
-  provider: 'google' | 'microsoft' | 'local';
-  requiresPasswordChange?: boolean;
-}
+// Re-export User type for backward compatibility during migration
+export type { User } from '@/models/User';
 
 interface TokenData {
   accessToken: string;
@@ -160,13 +155,14 @@ class AuthService {
       this.saveLocalUsers(users);
 
       // Create user object
-      const user: User = {
+      const userData: CreateUserData = {
         id: localUser.id,
         username: localUser.username,
         email: localUser.email,
         provider: 'local',
         requiresPasswordChange: localUser.requiresPasswordChange,
       };
+      const user = createUser(userData);
 
       // Store token (simple token for local auth)
       const tokenData: TokenData = {
@@ -280,13 +276,14 @@ class AuthService {
 
     try {
       // Create user object from OAuth response
-      const user: User = {
+      const userData: CreateUserData = {
         id: userInfo.id || userInfo.sub || `user_${Date.now()}`,
         username: userInfo.name || userInfo.displayName || 'User',
         email: userInfo.email || '',
         avatar: userInfo.picture || userInfo.avatar || undefined,
         provider,
       };
+      const user = createUser(userData);
 
       // Store token
       const tokenData: TokenData = {
