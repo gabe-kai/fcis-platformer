@@ -30,7 +30,7 @@ This document outlines the high-level implementation plan for the FCIS Platforme
 ### Phase 1: Core Foundation
 **Goal:** Establish basic infrastructure and minimal viable editor
 
-**Status:** 2 of 5 tasks complete (40%)
+**Status:** 2.5 of 5 tasks complete (50%)
 
 **Tasks:**
 1. ✅ **Project setup** - COMPLETE
@@ -52,6 +52,14 @@ This document outlines the high-level implementation plan for the FCIS Platforme
    - Create auth service and store
    - Implement login/logout flow
    - User profile management
+
+2.5. ✅ **Local authentication** - COMPLETE
+   - ✅ Local username/password authentication
+   - ✅ Default admin user (admin/ChangeMe)
+   - ✅ Password change requirement on first login
+   - ✅ Password change modal component
+   - **Branch:** `feature/phase1-local-auth`
+   - Provides development/testing authentication without OAuth setup
 
 3. 🔲 **Data models** - Not Started
    - Define TypeScript interfaces for core models:

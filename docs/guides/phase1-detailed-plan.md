@@ -10,15 +10,16 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 
 ## Current Status
 
-**Overall Progress:** 2 of 5 tasks complete (40%)
+**Overall Progress:** 2.5 of 5 tasks complete (50%)
 
 - ✅ **Task 1: Project Setup** - COMPLETE (Commit: `7077f91`)
 - ✅ **Task 2: User Authentication** - COMPLETE (Commit: `57e391e`)
+- ✅ **Task 2.5: Local Authentication** - COMPLETE (Branch: `feature/phase1-local-auth`)
 - 🔲 **Task 3: Data Models** - Not Started
 - 🔲 **Task 4: Basic Level Editor** - Not Started
 - 🔲 **Task 5: Local Storage** - Not Started
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-23
 
 ---
 
@@ -391,6 +392,127 @@ git push origin feature/phase1-user-authentication
 - [x] Logging follows logging guide (comprehensive logging added)
 - [x] Protected routes work (ProtectedRoute component implemented)
 - [x] Error handling is comprehensive (error states and logging)
+- [x] Type checking passes ✅
+- [x] Linting passes ✅
+- [x] Build succeeds ✅
+
+---
+
+## Task 2.5: Local Authentication (Development/Testing)
+
+### Branch: `feature/phase1-local-auth`
+
+### Overview
+Add local username/password authentication for development and testing purposes. This provides a simple authentication option without requiring Google OAuth setup, making it easier to develop and test the application.
+
+### Branch Creation
+```bash
+# Ensure you're on main branch
+git checkout main
+git pull origin main
+
+# Create feature branch
+git checkout -b feature/phase1-local-auth
+
+# Verify branch
+git branch
+```
+
+### Development Steps
+
+#### 2.5.1 Extend Auth Service for Local Authentication
+- [x] Update `User` interface to support `'local'` provider
+- [x] Add `requiresPasswordChange` flag to User interface
+- [x] Create `LocalUser` interface for internal storage
+- [x] Add `initializeDefaultUsers()` method to create default admin user
+- [x] Implement `loginLocal(username, password): Promise<User>`
+- [x] Implement `changePassword(oldPassword, newPassword): Promise<void>`
+- [x] Add simple password hashing (development only)
+- [x] Store local users in localStorage (`fcis_local_users`)
+- [x] Create default admin user: `admin` / `ChangeMe` with `requiresPasswordChange: true`
+
+#### 2.5.2 Update Auth Store
+- [x] Add `loginLocal(username, password): Promise<void>` method
+- [x] Add `changePassword(oldPassword, newPassword): Promise<void>` method
+- [x] Update `login()` method to handle local auth provider
+- [x] Add error handling for local authentication
+
+#### 2.5.3 Update Login Component
+- [x] Add auth mode toggle (Local Login / Google Sign-In)
+- [x] Create local login form with username/password fields
+- [x] Add form validation
+- [x] Show default credentials hint (`admin` / `ChangeMe`)
+- [x] Handle local login submission
+- [x] Update error handling for local auth
+- [x] Default to local auth mode for development
+
+#### 2.5.4 Create Password Change Modal
+- [x] Create `ChangePasswordModal.tsx` component
+- [x] Add form for old password, new password, confirm password
+- [x] Implement password validation (min 6 characters, matching)
+- [x] Add required mode (cannot be closed until password changed)
+- [x] Integrate with auth store `changePassword()` method
+- [x] Add styling for modal overlay and form
+
+#### 2.5.5 Integrate Password Change Flow
+- [x] Update Dashboard to show password change modal when required
+- [x] Auto-show modal for users with `requiresPasswordChange: true`
+- [x] Prevent closing modal when password change is required
+- [x] Update user state after successful password change
+
+#### 2.5.6 Update Tests
+- [x] Add tests for `loginLocal()` method
+- [x] Add tests for `changePassword()` method
+- [x] Add test for default admin user creation
+- [x] Add test for password change requirement
+- [x] Update test setup to clear local users storage
+
+### Logging Implementation
+
+- [x] Add logging to local login attempts and successes
+- [x] Log password change attempts and results
+- [x] Log default user creation
+- [x] Log authentication errors with context
+
+### Testing Requirements
+
+- [x] **Unit Tests:**
+  - [x] Test `loginLocal()` - success and failure cases
+  - [x] Test `changePassword()` - success and validation failures
+  - [x] Test default admin user creation on init
+  - [x] Test password change requirement flag
+  - [x] Test incorrect credentials handling
+
+- [x] **Coverage Goal:** Maintain 90% coverage for auth service
+  - ✅ All local auth methods tested
+  - ✅ Password change functionality tested
+
+### Commit & PR
+
+```bash
+git add .
+git commit -m "feat(auth): add local authentication for development
+
+- Add local username/password authentication service
+- Create default admin user (admin/ChangeMe) with password change requirement
+- Update Login component with local auth form and OAuth toggle
+- Add ChangePasswordModal component for required password changes
+- Update auth store to support local login and password changes
+- Add comprehensive tests for local authentication
+- Store local users in localStorage (development only)
+- Password change modal shows automatically for first-time local users
+
+This provides a simple authentication option for development/testing
+without requiring Google OAuth setup."
+```
+
+**PR Checklist:**
+- [x] All tests pass
+- [x] Local authentication works correctly
+- [x] Default admin user created on init
+- [x] Password change required on first login
+- [x] Password change modal works correctly
+- [x] Logging follows logging guide
 - [x] Type checking passes ✅
 - [x] Linting passes ✅
 - [x] Build succeeds ✅

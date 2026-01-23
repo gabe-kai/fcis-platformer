@@ -9,9 +9,13 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   login: (user: User) => Promise<void>;
+  loginLocal: (username: string, password: string) => Promise<void>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => void;
   updateProfile: (updates: Partial<User>) => void;
+  setError: (error: string | null) => void;
+  clearError: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,7 +29,11 @@ export const useAuthStore = create<AuthState>()(
       login: async (user: User) => {
         set({ isLoading: true, error: null });
         try {
-          await authService.login(user.provider, '', user);
+          // Only call authService.login for OAuth providers
+          if (user.provider === 'google' || user.provider === 'microsoft') {
+            await authService.login(user.provider, '', user);
+          }
+          // For local auth, user is already set by loginLocal
           const currentUser = authService.getCurrentUser();
           set({
             user: currentUser,
@@ -48,6 +56,64 @@ export const useAuthStore = create<AuthState>()(
             error: error instanceof Error ? error.message : 'Login failed',
             isAuthenticated: false,
             user: null,
+          });
+          throw error;
+        }
+      },
+
+      loginLocal: async (username: string, password: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const user = await authService.loginLocal(username, password);
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+          logger.info('User logged in via local auth', {
+            component: 'AuthStore',
+            operation: 'loginLocal',
+            userId: user.id,
+          });
+        } catch (error) {
+          logger.error('Local login failed in store', {
+            component: 'AuthStore',
+            operation: 'loginLocal',
+          }, { error: error instanceof Error ? error.message : 'Unknown error' });
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Login failed',
+            isAuthenticated: false,
+            user: null,
+          });
+          throw error;
+        }
+      },
+
+      changePassword: async (oldPassword: string, newPassword: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          await authService.changePassword(oldPassword, newPassword);
+          const currentUser = authService.getCurrentUser();
+          set({
+            user: currentUser,
+            isLoading: false,
+            error: null,
+          });
+          logger.info('Password changed successfully', {
+            component: 'AuthStore',
+            operation: 'changePassword',
+            userId: currentUser?.id,
+          });
+        } catch (error) {
+          logger.error('Password change failed in store', {
+            component: 'AuthStore',
+            operation: 'changePassword',
+          }, { error: error instanceof Error ? error.message : 'Unknown error' });
+          set({
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Password change failed',
           });
           throw error;
         }
@@ -104,6 +170,14 @@ export const useAuthStore = create<AuthState>()(
           operation: 'updateProfile',
           userId: updatedUser.id,
         });
+      },
+
+      setError: (error: string | null) => {
+        set({ error });
+      },
+
+      clearError: () => {
+        set({ error: null });
       },
     }),
     {

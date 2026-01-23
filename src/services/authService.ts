@@ -6,7 +6,8 @@ export interface User {
   username: string;
   email: string;
   avatar?: string;
-  provider: 'google' | 'microsoft';
+  provider: 'google' | 'microsoft' | 'local';
+  requiresPasswordChange?: boolean;
 }
 
 interface TokenData {
@@ -15,10 +16,86 @@ interface TokenData {
   expiresAt?: number;
 }
 
+interface LocalUser {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string; // In production, this would be properly hashed
+  requiresPasswordChange: boolean;
+  createdAt: number;
+  lastLogin?: number;
+}
+
 class AuthService {
   private readonly TOKEN_KEY = 'fcis_auth_token';
   private readonly USER_KEY = 'fcis_user';
+  private readonly LOCAL_USERS_KEY = 'fcis_local_users';
   private currentUser: User | null = null;
+
+  /**
+   * Initialize default admin user if it doesn't exist
+   */
+  private initializeDefaultUsers(): void {
+    const users = this.getLocalUsers();
+    
+    // Check if admin user exists
+    if (!users.find(u => u.username === 'admin')) {
+      const adminUser: LocalUser = {
+        id: 'admin',
+        username: 'admin',
+        email: 'admin@fcis.local',
+        passwordHash: this.hashPassword('ChangeMe'), // Default password
+        requiresPasswordChange: true, // Must change on first login
+        createdAt: Date.now(),
+      };
+      users.push(adminUser);
+      this.saveLocalUsers(users);
+      logger.info('Default admin user created', {
+        component: 'AuthService',
+        operation: 'initializeDefaultUsers',
+      });
+    }
+  }
+
+  /**
+   * Get all local users from storage
+   */
+  private getLocalUsers(): LocalUser[] {
+    try {
+      const usersStr = localStorage.getItem(this.LOCAL_USERS_KEY);
+      return usersStr ? JSON.parse(usersStr) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Save local users to storage
+   */
+  private saveLocalUsers(users: LocalUser[]): void {
+    localStorage.setItem(this.LOCAL_USERS_KEY, JSON.stringify(users));
+  }
+
+  /**
+   * Simple password hashing (for development only - not secure for production)
+   */
+  private hashPassword(password: string): string {
+    // Simple hash for development - in production use bcrypt or similar
+    let hash = 0;
+    for (let i = 0; i < password.length; i++) {
+      const char = password.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash.toString();
+  }
+
+  /**
+   * Verify password against hash
+   */
+  private verifyPassword(password: string, hash: string): boolean {
+    return this.hashPassword(password) === hash;
+  }
 
   /**
    * Reset service state (for testing)
@@ -27,6 +104,7 @@ class AuthService {
     this.currentUser = null;
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    // Note: We don't reset local users to preserve the admin account
   }
 
   /**
@@ -34,6 +112,9 @@ class AuthService {
    */
   init(): void {
     try {
+      // Initialize default users
+      this.initializeDefaultUsers();
+      
       const storedUser = localStorage.getItem(this.USER_KEY);
       if (storedUser) {
         this.currentUser = JSON.parse(storedUser);
@@ -48,6 +129,130 @@ class AuthService {
         component: 'AuthService',
         operation: 'init',
       }, { error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  }
+
+  /**
+   * Login with username and password (local authentication)
+   */
+  async loginLocal(username: string, password: string): Promise<User> {
+    logger.info('Local login attempt', {
+      component: 'AuthService',
+      operation: 'loginLocal',
+      username,
+    });
+
+    try {
+      const users = this.getLocalUsers();
+      const localUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+
+      if (!localUser || !this.verifyPassword(password, localUser.passwordHash)) {
+        logger.warn('Invalid credentials', {
+          component: 'AuthService',
+          operation: 'loginLocal',
+          username,
+        });
+        throw new Error('Invalid username or password');
+      }
+
+      // Update last login
+      localUser.lastLogin = Date.now();
+      this.saveLocalUsers(users);
+
+      // Create user object
+      const user: User = {
+        id: localUser.id,
+        username: localUser.username,
+        email: localUser.email,
+        provider: 'local',
+        requiresPasswordChange: localUser.requiresPasswordChange,
+      };
+
+      // Store token (simple token for local auth)
+      const tokenData: TokenData = {
+        accessToken: `local_${localUser.id}_${Date.now()}`,
+        expiresAt: Date.now() + 3600000, // 1 hour
+      };
+      localStorage.setItem(this.TOKEN_KEY, JSON.stringify(tokenData));
+      localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+
+      this.currentUser = user;
+
+      logger.info('User authenticated successfully (local)', {
+        component: 'AuthService',
+        operation: 'loginLocal',
+        userId: user.id,
+      });
+
+      return user;
+    } catch (error) {
+      logger.error('Local authentication failed', {
+        component: 'AuthService',
+        operation: 'loginLocal',
+      }, { error: error instanceof Error ? error.message : 'Unknown error' });
+      throw error;
+    }
+  }
+
+  /**
+   * Change password for local user
+   */
+  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+    if (!this.currentUser || this.currentUser.provider !== 'local') {
+      throw new Error('Password change only available for local users');
+    }
+
+    logger.info('Password change attempt', {
+      component: 'AuthService',
+      operation: 'changePassword',
+      userId: this.currentUser.id,
+    });
+
+    try {
+      const users = this.getLocalUsers();
+      const localUser = users.find(u => u.id === this.currentUser!.id);
+
+      if (!localUser) {
+        throw new Error('User not found');
+      }
+
+      // Verify old password
+      if (!this.verifyPassword(oldPassword, localUser.passwordHash)) {
+        logger.warn('Invalid old password', {
+          component: 'AuthService',
+          operation: 'changePassword',
+          userId: this.currentUser.id,
+        });
+        throw new Error('Invalid current password');
+      }
+
+      // Validate new password
+      if (!newPassword || newPassword.length < 6) {
+        throw new Error('New password must be at least 6 characters');
+      }
+
+      // Update password
+      localUser.passwordHash = this.hashPassword(newPassword);
+      localUser.requiresPasswordChange = false;
+      this.saveLocalUsers(users);
+
+      // Update current user
+      if (this.currentUser) {
+        this.currentUser.requiresPasswordChange = false;
+        localStorage.setItem(this.USER_KEY, JSON.stringify(this.currentUser));
+      }
+
+      logger.info('Password changed successfully', {
+        component: 'AuthService',
+        operation: 'changePassword',
+        userId: this.currentUser.id,
+      });
+    } catch (error) {
+      logger.error('Password change failed', {
+        component: 'AuthService',
+        operation: 'changePassword',
+      }, { error: error instanceof Error ? error.message : 'Unknown error' });
+      throw error;
     }
   }
 

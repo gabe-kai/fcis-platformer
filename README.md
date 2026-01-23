@@ -72,7 +72,60 @@ VITE_LOG_LEVEL=info
 VITE_ENABLE_LOGGING=true
 ```
 
-**Note:** You'll need to create a Google OAuth 2.0 client ID in the [Google Cloud Console](https://console.cloud.google.com/). Add your authorized JavaScript origins and redirect URIs.
+#### Setting Up Google OAuth 2.0
+
+To enable Google sign-in, you need to create a Google OAuth 2.0 client ID:
+
+1. **Go to Google Cloud Console**
+   - Visit [https://console.cloud.google.com/](https://console.cloud.google.com/)
+   - Sign in with your Google account
+
+2. **Create or Select a Project**
+   - Click the project dropdown at the top
+   - Click "New Project" or select an existing project
+   - Give it a name (e.g., "FCIS Platformer")
+
+3. **Enable Google+ API**
+   - Go to "APIs & Services" → "Library"
+   - Search for "Google+ API" or "Google Identity Services API"
+   - Click "Enable"
+
+4. **Create OAuth Credentials**
+   - Go to "APIs & Services" → "Credentials"
+   - Click "Create Credentials" → "OAuth client ID"
+   - If prompted, configure the OAuth consent screen first:
+     - Choose "External" (unless you have a Google Workspace)
+     - Fill in the required fields (App name, User support email, Developer contact)
+     - Add scopes: `email`, `profile`, `openid`
+     - Add test users if needed (for development)
+
+5. **Configure OAuth Client**
+   - Application type: **Web application**
+   - Name: "FCIS Platformer" (or your choice)
+   - **Authorized JavaScript origins:**
+     - `http://localhost:5173` (for Vite dev server)
+     - Add your production URL when deploying
+   - **Authorized redirect URIs:** (usually not needed for this setup)
+     - Can be left empty for now
+   - Click "Create"
+
+6. **Copy Your Client ID**
+   - A dialog will show your Client ID (looks like: `123456789-abcdefg.apps.googleusercontent.com`)
+   - Copy this value
+   - Paste it into your `.env` file as `VITE_GOOGLE_CLIENT_ID`
+
+7. **Restart Your Dev Server**
+   - After adding the `.env` file, restart `npm run dev` for changes to take effect
+
+**Troubleshooting:**
+- If you see "OAuth Not Configured" on the login page, check that:
+  - Your `.env` file exists in the root directory
+  - `VITE_GOOGLE_CLIENT_ID` is set correctly
+  - You've restarted the dev server after creating/updating `.env`
+- If sign-in fails, verify:
+  - Your authorized JavaScript origin includes `http://localhost:5173` (or your current port)
+  - The Client ID is correct (no extra spaces or quotes)
+  - You're using the correct OAuth client (Web application type)
 
 ### 4. Start the Development Server
 
