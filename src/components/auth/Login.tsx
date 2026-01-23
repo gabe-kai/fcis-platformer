@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '@/stores/authStore';
-import { authService, User } from '@/services/authService';
+import { authService } from '@/services/authService';
 import { logger } from '@/utils/logger';
 import './Login.css';
 
@@ -46,17 +46,8 @@ export function Login() {
       );
       const userInfo = JSON.parse(jsonPayload);
 
-      // Create user object
-      const user: User = {
-        id: userInfo.sub,
-        username: userInfo.name || 'User',
-        email: userInfo.email || '',
-        avatar: userInfo.picture,
-        provider: 'google',
-      };
-
-      // Login via service and store
-      await authService.login('google', credentialResponse.credential, userInfo);
+      // Login via service (creates user object internally)
+      const user = await authService.login('google', credentialResponse.credential, userInfo);
       await login(user);
     } catch (error) {
       const errorMsg = error instanceof Error 
