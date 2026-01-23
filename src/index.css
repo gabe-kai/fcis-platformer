@@ -19,24 +19,11 @@
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
 
 #root {
   width: 100%;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.App {
-  padding: 2rem;
-}
-
-.App-header h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-  margin: 0 0 1rem 0;
+  min-height: 100vh;
 }
