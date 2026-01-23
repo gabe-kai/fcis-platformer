@@ -134,4 +134,89 @@ describe('AuthStore', () => {
       expect(state.user).toBeNull();
     });
   });
+
+  describe('loginLocal', () => {
+    it('should update state when local login succeeds', async () => {
+      const user: User = {
+        id: 'test-user',
+        username: 'Test User',
+        email: 'test@example.com',
+        provider: 'local',
+      };
+
+      // Mock authService.loginLocal to succeed
+      vi.spyOn(authService, 'loginLocal').mockResolvedValue(user);
+      vi.spyOn(authService, 'getCurrentUser').mockReturnValue(user);
+
+      await useAuthStore.getState().loginLocal('testuser', 'password123');
+
+      const state = useAuthStore.getState();
+      expect(state.user).toEqual(user);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it('should set error state when local login fails', async () => {
+      // Mock authService.loginLocal to fail
+      vi.spyOn(authService, 'loginLocal').mockRejectedValue(new Error('Invalid credentials'));
+
+      await expect(useAuthStore.getState().loginLocal('testuser', 'wrongpass')).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.user).toBeNull();
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.error).toBeTruthy();
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should update user state after password change', async () => {
+      const user: User = {
+        id: 'test-user',
+        username: 'Test User',
+        email: 'test@example.com',
+        provider: 'local',
+        requiresPasswordChange: true,
+      };
+
+      useAuthStore.setState({ user, isAuthenticated: true });
+
+      // Mock authService.changePassword to succeed
+      vi.spyOn(authService, 'changePassword').mockResolvedValue(undefined);
+      vi.spyOn(authService, 'getCurrentUser').mockReturnValue({
+        ...user,
+        requiresPasswordChange: false,
+      });
+
+      await useAuthStore.getState().changePassword('oldpass', 'newpass123');
+
+      const state = useAuthStore.getState();
+      expect(state.user?.requiresPasswordChange).toBe(false);
+      expect(state.isLoading).toBe(false);
+      expect(state.error).toBeNull();
+    });
+
+    it('should set error state when password change fails', async () => {
+      const user: User = {
+        id: 'test-user',
+        username: 'Test User',
+        email: 'test@example.com',
+        provider: 'local',
+      };
+
+      useAuthStore.setState({ user, isAuthenticated: true });
+
+      // Mock authService.changePassword to fail
+      vi.spyOn(authService, 'changePassword').mockRejectedValue(new Error('Invalid password'));
+
+      await expect(
+        useAuthStore.getState().changePassword('wrongpass', 'newpass123')
+      ).rejects.toThrow();
+
+      const state = useAuthStore.getState();
+      expect(state.error).toBeTruthy();
+      expect(state.isLoading).toBe(false);
+    });
+  });
 });

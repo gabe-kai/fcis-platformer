@@ -34,8 +34,9 @@ class AuthService {
     const users = this.getLocalUsers();
     
     // Check if admin user exists
-    if (!users.find(u => u.username === 'admin')) {
-      const adminUser: LocalUser = {
+    const adminUser = users.find(u => u.username === 'admin');
+    if (!adminUser) {
+      const newAdminUser: LocalUser = {
         id: 'admin',
         username: 'admin',
         email: 'admin@fcis.local',
@@ -43,13 +44,49 @@ class AuthService {
         requiresPasswordChange: true, // Must change on first login
         createdAt: Date.now(),
       };
-      users.push(adminUser);
+      users.push(newAdminUser);
       this.saveLocalUsers(users);
       logger.info('Default admin user created', {
         component: 'AuthService',
         operation: 'initializeDefaultUsers',
       });
     }
+  }
+
+  /**
+   * Reset admin password to default (for development/debugging only)
+   * This should be removed or secured in production
+   */
+  resetAdminPassword(): void {
+    const users = this.getLocalUsers();
+    const adminUser = users.find(u => u.username === 'admin');
+    
+    if (adminUser) {
+      adminUser.passwordHash = this.hashPassword('ChangeMe');
+      adminUser.requiresPasswordChange = true;
+      this.saveLocalUsers(users);
+      logger.info('Admin password reset to default', {
+        component: 'AuthService',
+        operation: 'resetAdminPassword',
+      });
+    }
+  }
+
+  /**
+   * Check if default admin credentials should be shown
+   * Returns true if admin user doesn't exist or still requires password change
+   */
+  shouldShowDefaultAdminCredentials(): boolean {
+    const users = this.getLocalUsers();
+    const adminUser = users.find(u => u.username === 'admin');
+    
+    // Show if admin doesn't exist (shouldn't happen after init, but just in case)
+    if (!adminUser) {
+      return true;
+    }
+    
+    // Show if admin still requires password change (first run scenario)
+    return adminUser.requiresPasswordChange === true;
   }
 
   /**
@@ -131,6 +168,10 @@ class AuthService {
    * Login with username and password (local authentication)
    */
   async loginLocal(username: string, password: string): Promise<User> {
+    // Trim whitespace from inputs
+    username = username.trim();
+    password = password.trim();
+
     logger.info('Local login attempt', {
       component: 'AuthService',
       operation: 'loginLocal',
@@ -141,11 +182,22 @@ class AuthService {
       const users = this.getLocalUsers();
       const localUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
 
-      if (!localUser || !this.verifyPassword(password, localUser.passwordHash)) {
-        logger.warn('Invalid credentials', {
+      if (!localUser) {
+        logger.warn('User not found', {
           component: 'AuthService',
           operation: 'loginLocal',
           username,
+        });
+        throw new Error('Invalid username or password');
+      }
+
+      const passwordMatches = this.verifyPassword(password, localUser.passwordHash);
+      if (!passwordMatches) {
+        logger.warn('Invalid password', {
+          component: 'AuthService',
+          operation: 'loginLocal',
+          username,
+          userId: localUser.id,
         });
         throw new Error('Invalid username or password');
       }
@@ -198,6 +250,10 @@ class AuthService {
       throw new Error('Password change only available for local users');
     }
 
+    // Trim whitespace from inputs
+    oldPassword = oldPassword.trim();
+    newPassword = newPassword.trim();
+
     logger.info('Password change attempt', {
       component: 'AuthService',
       operation: 'changePassword',
@@ -228,9 +284,22 @@ class AuthService {
       }
 
       // Update password
-      localUser.passwordHash = this.hashPassword(newPassword);
+      const newPasswordHash = this.hashPassword(newPassword);
+      localUser.passwordHash = newPasswordHash;
       localUser.requiresPasswordChange = false;
       this.saveLocalUsers(users);
+
+      // Verify the password was saved correctly
+      const savedUsers = this.getLocalUsers();
+      const savedUser = savedUsers.find(u => u.id === this.currentUser!.id);
+      if (!savedUser || savedUser.passwordHash !== newPasswordHash) {
+        logger.error('Password save verification failed', {
+          component: 'AuthService',
+          operation: 'changePassword',
+          userId: this.currentUser.id,
+        });
+        throw new Error('Failed to save password. Please try again.');
+      }
 
       // Update current user
       if (this.currentUser) {
@@ -425,6 +494,149 @@ class AuthService {
       return null;
     }
   }
+
+  /**
+   * Check if current user is admin
+   */
+  isAdmin(): boolean {
+    return this.currentUser?.id === 'admin' || this.currentUser?.username === 'admin';
+  }
+
+  /**
+   * Get all users (admin only)
+   */
+  getAllUsers(): User[] {
+    if (!this.isAdmin()) {
+      throw new Error('Only admins can view all users');
+    }
+
+    const localUsers = this.getLocalUsers();
+    const users: User[] = localUsers.map((localUser) => {
+      const userData: CreateUserData = {
+        id: localUser.id,
+        username: localUser.username,
+        email: localUser.email,
+        provider: 'local',
+        requiresPasswordChange: localUser.requiresPasswordChange,
+      };
+      return createUser(userData);
+    });
+
+    logger.debug('Retrieved all users', {
+      component: 'AuthService',
+      operation: 'getAllUsers',
+      count: users.length,
+    });
+
+    return users;
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(updates: { username?: string; email?: string; avatar?: string }): Promise<void> {
+    if (!this.currentUser) {
+      throw new Error('No user logged in');
+    }
+
+    logger.info('Updating user profile', {
+      component: 'AuthService',
+      operation: 'updateProfile',
+      userId: this.currentUser.id,
+    });
+
+    try {
+      // Update local user if provider is local
+      if (this.currentUser.provider === 'local') {
+        const users = this.getLocalUsers();
+        const localUser = users.find(u => u.id === this.currentUser!.id);
+
+        if (localUser) {
+          if (updates.username !== undefined) {
+            localUser.username = updates.username;
+          }
+          if (updates.email !== undefined) {
+            localUser.email = updates.email;
+          }
+          this.saveLocalUsers(users);
+        }
+      }
+
+      // Update current user object
+      const updatedUser = { ...this.currentUser };
+      if (updates.username !== undefined) {
+        updatedUser.username = updates.username;
+      }
+      if (updates.email !== undefined) {
+        updatedUser.email = updates.email;
+      }
+      if (updates.avatar !== undefined) {
+        updatedUser.avatar = updates.avatar;
+      }
+
+      this.currentUser = updatedUser;
+      localStorage.setItem(this.USER_KEY, JSON.stringify(updatedUser));
+
+      logger.info('User profile updated successfully', {
+        component: 'AuthService',
+        operation: 'updateProfile',
+        userId: this.currentUser.id,
+      });
+    } catch (error) {
+      logger.error('Profile update failed', {
+        component: 'AuthService',
+        operation: 'updateProfile',
+      }, { error: error instanceof Error ? error.message : 'Unknown error' });
+      throw error;
+    }
+  }
+
+  /**
+   * Reset a user's password (admin only)
+   */
+  async resetUserPassword(userId: string): Promise<void> {
+    if (!this.isAdmin()) {
+      throw new Error('Only admins can reset user passwords');
+    }
+
+    if (userId === 'admin') {
+      throw new Error('Cannot reset admin password using this method');
+    }
+
+    logger.info('Resetting user password', {
+      component: 'AuthService',
+      operation: 'resetUserPassword',
+      targetUserId: userId,
+    });
+
+    try {
+      const users = this.getLocalUsers();
+      const targetUser = users.find(u => u.id === userId);
+
+      if (!targetUser) {
+        throw new Error('User not found');
+      }
+
+      // All LocalUser entries are local users by definition
+
+      // Reset to default password
+      targetUser.passwordHash = this.hashPassword('ChangeMe');
+      targetUser.requiresPasswordChange = true;
+      this.saveLocalUsers(users);
+
+      logger.info('User password reset successfully', {
+        component: 'AuthService',
+        operation: 'resetUserPassword',
+        targetUserId: userId,
+      });
+    } catch (error) {
+      logger.error('Password reset failed', {
+        component: 'AuthService',
+        operation: 'resetUserPassword',
+      }, { error: error instanceof Error ? error.message : 'Unknown error' });
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
@@ -432,3 +644,11 @@ export const authService = new AuthService();
 
 // Initialize on module load
 authService.init();
+
+// Expose resetAdminPassword to window for debugging (development only)
+if (import.meta.env.DEV) {
+  (window as any).resetAdminPassword = () => {
+    authService.resetAdminPassword();
+    console.log('Admin password reset to "ChangeMe". You can now log in with admin/ChangeMe');
+  };
+}

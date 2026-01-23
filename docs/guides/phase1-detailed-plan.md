@@ -16,10 +16,19 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 - ✅ **Task 2: User Authentication** - COMPLETE (Commit: `57e391e`)
 - ✅ **Task 2.5: Local Authentication** - COMPLETE (Branch: `feature/phase1-local-auth`)
 - ✅ **Task 3: Data Models** - COMPLETE (Branch: `feature/phase1-data-models`)
+- ✅ **Bugfix: Login Redirect & Password Improvements** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
+- ✅ **Feature: User Details Modal & Admin Management** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
 - 🔲 **Task 4: Basic Level Editor** - Not Started
 - 🔲 **Task 5: Local Storage** - Not Started
 
 **Last Updated:** 2026-01-23
+
+**Recent Updates:**
+- Added login redirect after successful authentication
+- Improved password handling with trimming and verification
+- Added user details modal with profile editing
+- Added admin user management interface
+- Fixed modal positioning and z-index issues
 
 ---
 
@@ -501,6 +510,10 @@ git commit -m "feat(auth): add local authentication for development
 - Add comprehensive tests for local authentication
 - Store local users in localStorage (development only)
 - Password change modal shows automatically for first-time local users
+- Login redirects to dashboard after successful authentication
+- Username in header is clickable to open user details modal
+- Admin users can view and manage all users
+- Profile editing (username, email, avatar) available for all users
 
 This provides a simple authentication option for development/testing
 without requiring Google OAuth setup."
@@ -512,6 +525,95 @@ without requiring Google OAuth setup."
 - [x] Default admin user created on init
 - [x] Password change required on first login
 - [x] Password change modal works correctly
+- [x] Logging follows logging guide
+- [x] Type checking passes ✅
+- [x] Linting passes ✅
+- [x] Build succeeds ✅
+
+---
+
+## Bugfix & Enhancement: Login Redirect, Password Improvements, and User Management
+
+### Branch: `bugfix/login-redirect-and-password-fixes`
+
+### Overview
+This branch includes bug fixes for login redirect functionality, improvements to password handling, and new features for user profile management and admin user administration.
+
+### Changes
+
+#### Login Redirect Fix
+- [x] Add navigation after successful login (both OAuth and local)
+- [x] Navigate to dashboard or intended destination after authentication
+- [x] Respect `from` location state for redirects
+
+#### Password Handling Improvements
+- [x] Add password trimming to prevent whitespace issues
+- [x] Improve error logging to distinguish user not found vs invalid password
+- [x] Add password save verification after password change
+- [x] Add `resetAdminPassword()` debug function for development
+- [x] Expose `resetAdminPassword` to window in dev mode
+
+#### Login UI Improvements
+- [x] Update auth mode toggle to show only alternative method
+- [x] Conditionally show default admin credentials help text
+- [x] Only show toggle if OAuth is configured
+
+#### User Details Modal
+- [x] Make username in UserProfile clickable to open modal
+- [x] Create `UserDetailsModal` component with profile and admin tabs
+- [x] Add profile editing (username, email, avatar)
+- [x] Add password change functionality for local users
+- [x] Add admin user management tab (admin only):
+  - View all users
+  - Reset user passwords
+- [x] Use React Portal for proper modal rendering
+
+#### AuthService Enhancements
+- [x] Add `isAdmin()` method to check if current user is admin
+- [x] Add `getAllUsers()` method to get all users (admin only)
+- [x] Add `updateProfile()` method to update user profile
+- [x] Add `resetUserPassword()` method to reset user password (admin only)
+- [x] Add `shouldShowDefaultAdminCredentials()` helper method
+
+### Logging Implementation
+- [x] Log navigation after successful login
+- [x] Log password save verification results
+- [x] Log profile update attempts and results
+- [x] Log admin user management actions
+- [x] Log user password resets
+
+### Testing Requirements
+- [x] **Manual Testing:**
+  - [x] Login redirects to dashboard after successful authentication
+  - [x] Password trimming prevents whitespace issues
+  - [x] User details modal opens from username click
+  - [x] Profile editing works correctly
+  - [x] Admin can view all users
+  - [x] Admin can reset user passwords
+  - [x] Modal positioning is correct (centered, above all content)
+
+### Commit & PR
+
+```bash
+git add .
+git commit -m "feat(auth): add login redirect and user management features
+
+- Add navigation after successful login (both OAuth and local)
+- Improve password handling with trimming and verification
+- Add user details modal with profile editing
+- Add admin user management interface
+- Fix modal positioning and z-index issues
+- Add authService methods for profile updates and admin management
+- Improve login UI toggle and conditional help text"
+```
+
+**PR Checklist:**
+- [x] Login redirects correctly after authentication
+- [x] Password improvements work as expected
+- [x] User details modal displays correctly
+- [x] Profile editing saves correctly
+- [x] Admin user management works (admin only)
+- [x] Modal renders above all content
 - [x] Logging follows logging guide
 - [x] Type checking passes ✅
 - [x] Linting passes ✅

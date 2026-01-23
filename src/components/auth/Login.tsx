@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '@/stores/authStore';
 import { authService } from '@/services/authService';
@@ -6,6 +7,8 @@ import { logger } from '@/utils/logger';
 import './Login.css';
 
 export function Login() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { login, loginLocal, isLoading, error, setError, clearError } = useAuthStore();
   const [authMode, setAuthMode] = useState<'oauth' | 'local'>('local'); // Default to local for development
   const [username, setUsername] = useState('');
@@ -14,6 +17,9 @@ export function Login() {
   // Check if Google OAuth is configured
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const isOAuthConfigured = Boolean(googleClientId && googleClientId.trim() !== '');
+
+  // Check if default admin credentials should be shown
+  const showDefaultAdminCredentials = authService.shouldShowDefaultAdminCredentials();
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
@@ -49,6 +55,10 @@ export function Login() {
       // Login via service (creates user object internally)
       const user = await authService.login('google', credentialResponse.credential, userInfo);
       await login(user);
+      
+      // Navigate to dashboard or intended destination
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      navigate(from, { replace: true });
     } catch (error) {
       const errorMsg = error instanceof Error 
         ? `Sign-in failed: ${error.message}` 
@@ -81,7 +91,9 @@ export function Login() {
 
     try {
       await loginLocal(username.trim(), password);
-      // Success - user will be redirected by ProtectedRoute
+      // Navigate to dashboard or intended destination
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      navigate(from, { replace: true });
     } catch {
       // Error is already set by the store
       logger.error('Local login failed', {
@@ -98,31 +110,34 @@ export function Login() {
         <h2>Platformer Game Editor</h2>
         <p>Sign in to create and play your own games!</p>
 
-        {/* Auth Mode Toggle */}
-        <div className="auth-mode-toggle">
-          <button
-            type="button"
-            className={authMode === 'local' ? 'active' : ''}
-            onClick={() => {
-              setAuthMode('local');
-              clearError();
-            }}
-          >
-            Local Login
-          </button>
-          {isOAuthConfigured && (
-            <button
-              type="button"
-              className={authMode === 'oauth' ? 'active' : ''}
-              onClick={() => {
-                setAuthMode('oauth');
-                clearError();
-              }}
-            >
-              Google Sign-In
-            </button>
-          )}
-        </div>
+        {/* Auth Mode Toggle - Only show if OAuth is configured */}
+        {isOAuthConfigured && (
+          <div className="auth-mode-toggle">
+            {authMode === 'local' ? (
+              <button
+                type="button"
+                className="auth-mode-switch"
+                onClick={() => {
+                  setAuthMode('oauth');
+                  clearError();
+                }}
+              >
+                Sign in with Google instead
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="auth-mode-switch"
+                onClick={() => {
+                  setAuthMode('local');
+                  clearError();
+                }}
+              >
+                Sign in with username/password instead
+              </button>
+            )}
+          </div>
+        )}
 
         {!isOAuthConfigured && authMode === 'oauth' && (
           <div className="config-warning" role="alert">
@@ -167,9 +182,11 @@ export function Login() {
                 required
               />
             </div>
-            <div className="form-help">
-              <p>Default admin: <code>admin</code> / <code>ChangeMe</code></p>
-            </div>
+            {showDefaultAdminCredentials && (
+              <div className="form-help">
+                <p>Default admin: <code>admin</code> / <code>ChangeMe</code></p>
+              </div>
+            )}
             <button type="submit" className="login-button" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
