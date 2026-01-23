@@ -9,7 +9,8 @@ First Cat In Space Platformer is an educational game creation tool that empowers
 ## ✨ Features
 
 ### Current Features (Phase 1 - In Progress)
-- ✅ **User Authentication** - OAuth login with Google
+- ✅ **User Authentication** - OAuth login with Google + Local username/password authentication
+- ✅ **User Profile Management** - Edit profile, change password, admin user management
 - ✅ **Project Infrastructure** - React + TypeScript + Vite setup
 - ✅ **Unified Logging System** - Comprehensive logging throughout the application
 - ✅ **Testing Framework** - Vitest with React Testing Library
@@ -237,12 +238,14 @@ npm run test:coverage
 
 ## 🎯 Current Status
 
-**Phase 1: Core Foundation** - 3 of 5 tasks complete (60%)
+**Phase 1: Core Foundation** - Core authentication and user management complete
 
 - ✅ Task 1: Project Setup
 - ✅ Task 2: User Authentication
 - ✅ Task 2.5: Local Authentication (Development)
 - ✅ Task 3: Data Models
+- ✅ Bugfix: Login Redirect & Password Improvements
+- ✅ Feature: User Details Modal & Admin Management
 - 🔲 Task 4: Basic Level Editor
 - 🔲 Task 5: Local Storage
 

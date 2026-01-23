@@ -47,10 +47,12 @@ The [Phase 1 progress tracker](guides/phase1-progress.md) shows:
 - ✅ Task 2 (User Authentication) - **COMPLETE** (Commit: `57e391e`)
 - ✅ Task 2.5 (Local Authentication) - **COMPLETE** (Branch: `feature/phase1-local-auth`)
 - ✅ Task 3 (Data Models) - **COMPLETE** (Branch: `feature/phase1-data-models`)
+- ✅ Bugfix: Login Redirect & Password Improvements - **COMPLETE** (Branch: `bugfix/login-redirect-and-password-fixes`)
+- ✅ Feature: User Details Modal & Admin Management - **COMPLETE** (Branch: `bugfix/login-redirect-and-password-fixes`)
 - 🔲 Task 4 (Basic Level Editor) - Not Started
 - 🔲 Task 5 (Local Storage) - Not Started
 
-**Overall Progress:** 3 of 5 tasks complete (60%)
+**Overall Progress:** Core authentication and user management features complete
 
 ### Logging Guide
 The [logging guide](guides/logging-guide.md) defines:

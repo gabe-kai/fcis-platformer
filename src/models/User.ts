@@ -70,8 +70,11 @@ export function validateUser(data: Partial<CreateUserData>): UserValidationError
 
   if (!data.email || typeof data.email !== 'string' || data.email.trim().length === 0) {
     errors.email = 'Email is required and must be a non-empty string';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    errors.email = 'Email must be a valid email address';
+  } else {
+    const trimmedEmail = data.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      errors.email = 'Email must be a valid email address';
+    }
   }
 
   if (!data.provider || !['google', 'microsoft', 'local'].includes(data.provider)) {

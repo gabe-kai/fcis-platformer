@@ -259,5 +259,252 @@ describe('AuthService', () => {
         authService.changePassword('old', 'new')
       ).rejects.toThrow('Password change only available for local users');
     });
+
+    it('should trim whitespace from passwords', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      await authService.changePassword('ChangeMe', 'NewPass123');
+
+      // Try logging in with password that has whitespace
+      await authService.logout();
+      const user = await authService.loginLocal('admin', '  NewPass123  ');
+      expect(user).toBeDefined();
+    });
+
+    it('should verify password was saved correctly', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      // This test verifies the password save verification logic
+      await authService.changePassword('ChangeMe', 'VerifiedPass123');
+      
+      // Verify we can login with new password
+      await authService.logout();
+      const user = await authService.loginLocal('admin', 'VerifiedPass123');
+      expect(user).toBeDefined();
+      expect(user.requiresPasswordChange).toBe(false);
+    });
+  });
+
+  describe('shouldShowDefaultAdminCredentials', () => {
+    it('should return true when admin user does not exist', () => {
+      localStorage.removeItem('fcis_local_users');
+      expect(authService.shouldShowDefaultAdminCredentials()).toBe(true);
+    });
+
+    it('should return true when admin requires password change', () => {
+      authService.init(); // Creates admin with requiresPasswordChange: true
+      expect(authService.shouldShowDefaultAdminCredentials()).toBe(true);
+    });
+
+    it('should return false when admin password has been changed', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      await authService.changePassword('ChangeMe', 'NewPassword123');
+      
+      expect(authService.shouldShowDefaultAdminCredentials()).toBe(false);
+    });
+  });
+
+  describe('isAdmin', () => {
+    it('should return true for admin user by id', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      expect(authService.isAdmin()).toBe(true);
+    });
+
+    it('should return false for non-admin user', async () => {
+      const userInfo = {
+        sub: 'regular-user',
+        name: 'Regular User',
+        email: 'user@example.com',
+      };
+      await authService.login('google', 'token', userInfo);
+      expect(authService.isAdmin()).toBe(false);
+    });
+
+    it('should return false when not logged in', () => {
+      expect(authService.isAdmin()).toBe(false);
+    });
+  });
+
+  describe('getAllUsers', () => {
+    it('should return all users for admin', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      const users = authService.getAllUsers();
+      expect(users.length).toBeGreaterThan(0);
+      expect(users.find(u => u.id === 'admin')).toBeDefined();
+    });
+
+    it('should throw error for non-admin user', async () => {
+      const userInfo = {
+        sub: 'regular-user',
+        name: 'Regular User',
+        email: 'user@example.com',
+      };
+      await authService.login('google', 'token', userInfo);
+      
+      expect(() => authService.getAllUsers()).toThrow('Only admins can view all users');
+    });
+
+    it('should throw error when not logged in', () => {
+      expect(() => authService.getAllUsers()).toThrow('Only admins can view all users');
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('should update username for local user', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await authService.updateProfile({ username: 'NewAdminName' });
+      
+      const user = authService.getCurrentUser();
+      expect(user?.username).toBe('NewAdminName');
+    });
+
+    it('should update email for local user', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await authService.updateProfile({ email: 'newemail@example.com' });
+      
+      const user = authService.getCurrentUser();
+      expect(user?.email).toBe('newemail@example.com');
+    });
+
+    it('should update avatar', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await authService.updateProfile({ avatar: 'https://example.com/avatar.jpg' });
+      
+      const user = authService.getCurrentUser();
+      expect(user?.avatar).toBe('https://example.com/avatar.jpg');
+    });
+
+    it('should update multiple fields at once', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await authService.updateProfile({
+        username: 'UpdatedAdmin',
+        email: 'updated@example.com',
+        avatar: 'https://example.com/new-avatar.jpg',
+      });
+      
+      const user = authService.getCurrentUser();
+      expect(user?.username).toBe('UpdatedAdmin');
+      expect(user?.email).toBe('updated@example.com');
+      expect(user?.avatar).toBe('https://example.com/new-avatar.jpg');
+    });
+
+    it('should throw error when not logged in', async () => {
+      await expect(
+        authService.updateProfile({ username: 'NewName' })
+      ).rejects.toThrow('No user logged in');
+    });
+
+    it('should persist changes to localStorage for local users', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await authService.updateProfile({ username: 'PersistedName' });
+      
+      // Check localStorage
+      const storedUser = JSON.parse(localStorage.getItem('fcis_user') || '{}');
+      expect(storedUser.username).toBe('PersistedName');
+      
+      // Check local users storage
+      const localUsers = JSON.parse(localStorage.getItem('fcis_local_users') || '[]');
+      const adminUser = localUsers.find((u: any) => u.id === 'admin');
+      expect(adminUser.username).toBe('PersistedName');
+    });
+  });
+
+  describe('resetUserPassword', () => {
+    it('should reset user password for admin', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      // Create a test user
+      const testUser = {
+        id: 'test-user',
+        username: 'testuser',
+        email: 'test@example.com',
+        passwordHash: authService['hashPassword']('OriginalPassword'),
+        requiresPasswordChange: false,
+        createdAt: Date.now(),
+      };
+      const users = JSON.parse(localStorage.getItem('fcis_local_users') || '[]');
+      users.push(testUser);
+      localStorage.setItem('fcis_local_users', JSON.stringify(users));
+      
+      // Reset password
+      await authService.resetUserPassword('test-user');
+      
+      // Verify password was reset
+      const updatedUsers = JSON.parse(localStorage.getItem('fcis_local_users') || '[]');
+      const updatedUser = updatedUsers.find((u: any) => u.id === 'test-user');
+      expect(updatedUser.requiresPasswordChange).toBe(true);
+      
+      // Verify can login with default password
+      await authService.logout();
+      await authService.loginLocal('admin', 'ChangeMe');
+      const loginUser = await authService.loginLocal('testuser', 'ChangeMe');
+      expect(loginUser).toBeDefined();
+    });
+
+    it('should throw error for non-admin user', async () => {
+      const userInfo = {
+        sub: 'regular-user',
+        name: 'Regular User',
+        email: 'user@example.com',
+      };
+      await authService.login('google', 'token', userInfo);
+      
+      await expect(
+        authService.resetUserPassword('some-user-id')
+      ).rejects.toThrow('Only admins can reset user passwords');
+    });
+
+    it('should throw error when trying to reset admin password', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await expect(
+        authService.resetUserPassword('admin')
+      ).rejects.toThrow('Cannot reset admin password using this method');
+    });
+
+    it('should throw error for non-existent user', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      
+      await expect(
+        authService.resetUserPassword('nonexistent-user')
+      ).rejects.toThrow('User not found');
+    });
+  });
+
+  describe('loginLocal password trimming', () => {
+    it('should trim whitespace from username', async () => {
+      authService.init();
+      const user = await authService.loginLocal('  admin  ', 'ChangeMe');
+      expect(user).toBeDefined();
+      expect(user.username).toBe('admin');
+    });
+
+    it('should trim whitespace from password', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+      await authService.changePassword('ChangeMe', 'TrimmedPass123');
+      
+      await authService.logout();
+      const user = await authService.loginLocal('admin', '  TrimmedPass123  ');
+      expect(user).toBeDefined();
+    });
   });
 });
