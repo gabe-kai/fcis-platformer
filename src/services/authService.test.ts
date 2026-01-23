@@ -4,7 +4,10 @@ import { authService, User } from './authService';
 describe('AuthService', () => {
   beforeEach(() => {
     // Clear localStorage and reset authService state
+    localStorage.clear();
     authService.reset();
+    // Clear local users storage
+    localStorage.removeItem('fcis_local_users');
   });
 
   describe('init', () => {
@@ -179,6 +182,81 @@ describe('AuthService', () => {
     it('should return null when no token exists', () => {
       const token = authService.getAccessToken();
       expect(token).toBeNull();
+    });
+  });
+
+  describe('loginLocal', () => {
+    it('should create default admin user on init', () => {
+      authService.init();
+      // Admin user should be created
+      const users = JSON.parse(localStorage.getItem('fcis_local_users') || '[]');
+      const adminUser = users.find((u: any) => u.username === 'admin');
+      expect(adminUser).toBeDefined();
+      expect(adminUser.requiresPasswordChange).toBe(true);
+    });
+
+    it('should login with correct credentials', async () => {
+      authService.init(); // Creates admin user
+      const user = await authService.loginLocal('admin', 'ChangeMe');
+
+      expect(user.id).toBe('admin');
+      expect(user.username).toBe('admin');
+      expect(user.provider).toBe('local');
+      expect(user.requiresPasswordChange).toBe(true);
+      expect(authService.isAuthenticated()).toBe(true);
+    });
+
+    it('should throw error with incorrect credentials', async () => {
+      authService.init();
+      await expect(
+        authService.loginLocal('admin', 'wrongpassword')
+      ).rejects.toThrow('Invalid username or password');
+    });
+
+    it('should throw error for non-existent user', async () => {
+      authService.init();
+      await expect(
+        authService.loginLocal('nonexistent', 'password')
+      ).rejects.toThrow('Invalid username or password');
+    });
+  });
+
+  describe('changePassword', () => {
+    it('should change password successfully', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+
+      await authService.changePassword('ChangeMe', 'NewPassword123');
+
+      // Try logging in with new password
+      await authService.logout();
+      const user = await authService.loginLocal('admin', 'NewPassword123');
+      expect(user).toBeDefined();
+      expect(user.requiresPasswordChange).toBe(false);
+    });
+
+    it('should throw error with incorrect old password', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+
+      await expect(
+        authService.changePassword('WrongPassword', 'NewPassword123')
+      ).rejects.toThrow('Invalid current password');
+    });
+
+    it('should throw error if new password is too short', async () => {
+      authService.init();
+      await authService.loginLocal('admin', 'ChangeMe');
+
+      await expect(
+        authService.changePassword('ChangeMe', 'short')
+      ).rejects.toThrow('New password must be at least 6 characters');
+    });
+
+    it('should throw error if not logged in as local user', async () => {
+      await expect(
+        authService.changePassword('old', 'new')
+      ).rejects.toThrow('Password change only available for local users');
     });
   });
 });

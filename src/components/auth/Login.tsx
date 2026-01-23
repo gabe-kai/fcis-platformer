@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuthStore } from '@/stores/authStore';
 import { authService, User } from '@/services/authService';
@@ -5,11 +6,22 @@ import { logger } from '@/utils/logger';
 import './Login.css';
 
 export function Login() {
-  const { login, isLoading, error } = useAuthStore();
+  const { login, loginLocal, isLoading, error, setError, clearError } = useAuthStore();
+  const [authMode, setAuthMode] = useState<'oauth' | 'local'>('local'); // Default to local for development
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  // Check if Google OAuth is configured
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const isOAuthConfigured = Boolean(googleClientId && googleClientId.trim() !== '');
 
   const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
     try {
+      clearError();
+      
       if (!credentialResponse.credential) {
+        const errorMsg = 'Google sign-in failed: No credential received. Please try again.';
+        setError(errorMsg);
         logger.error('Google OAuth response missing credential', {
           component: 'Login',
           operation: 'google_oauth',
@@ -47,6 +59,10 @@ export function Login() {
       await authService.login('google', credentialResponse.credential, userInfo);
       await login(user);
     } catch (error) {
+      const errorMsg = error instanceof Error 
+        ? `Sign-in failed: ${error.message}` 
+        : 'Sign-in failed. Please check your Google OAuth configuration and try again.';
+      setError(errorMsg);
       logger.error('Google login failed', {
         component: 'Login',
         operation: 'google_oauth',
@@ -55,10 +71,33 @@ export function Login() {
   };
 
   const handleGoogleError = () => {
+    const errorMsg = 'Google sign-in error. Please check your OAuth configuration. See README.md for setup instructions.';
+    setError(errorMsg);
     logger.error('Google OAuth error', {
       component: 'Login',
       operation: 'google_oauth',
     });
+  };
+
+  const handleLocalLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+
+    if (!username.trim() || !password.trim()) {
+      setError('Please enter both username and password');
+      return;
+    }
+
+    try {
+      await loginLocal(username.trim(), password);
+      // Success - user will be redirected by ProtectedRoute
+    } catch {
+      // Error is already set by the store
+      logger.error('Local login failed', {
+        component: 'Login',
+        operation: 'local_login',
+      });
+    }
   };
 
   return (
@@ -68,23 +107,104 @@ export function Login() {
         <h2>Platformer Game Editor</h2>
         <p>Sign in to create and play your own games!</p>
 
+        {/* Auth Mode Toggle */}
+        <div className="auth-mode-toggle">
+          <button
+            type="button"
+            className={authMode === 'local' ? 'active' : ''}
+            onClick={() => {
+              setAuthMode('local');
+              clearError();
+            }}
+          >
+            Local Login
+          </button>
+          {isOAuthConfigured && (
+            <button
+              type="button"
+              className={authMode === 'oauth' ? 'active' : ''}
+              onClick={() => {
+                setAuthMode('oauth');
+                clearError();
+              }}
+            >
+              Google Sign-In
+            </button>
+          )}
+        </div>
+
+        {!isOAuthConfigured && authMode === 'oauth' && (
+          <div className="config-warning" role="alert">
+            <strong>⚠️ OAuth Not Configured</strong>
+            <p>Google OAuth client ID is missing. Please set up your <code>VITE_GOOGLE_CLIENT_ID</code> in a <code>.env</code> file.</p>
+            <p>See <code>README.md</code> for detailed setup instructions.</p>
+          </div>
+        )}
+
         {error && (
           <div className="error-message" role="alert">
             {error}
           </div>
         )}
 
-        <div className="oauth-buttons">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            useOneTap
-            theme="outline"
-            size="large"
-            text="signin_with"
-            shape="rectangular"
-          />
-        </div>
+        {/* Local Login Form */}
+        {authMode === 'local' && (
+          <form onSubmit={handleLocalLogin} className="local-login-form">
+            <div className="form-group">
+              <label htmlFor="username">Username</label>
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+                disabled={isLoading}
+                autoComplete="username"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                disabled={isLoading}
+                autoComplete="current-password"
+                required
+              />
+            </div>
+            <div className="form-help">
+              <p>Default admin: <code>admin</code> / <code>ChangeMe</code></p>
+            </div>
+            <button type="submit" className="login-button" disabled={isLoading}>
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        )}
+
+        {/* OAuth Login */}
+        {authMode === 'oauth' && (
+          <div className="oauth-buttons">
+            {isOAuthConfigured ? (
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap
+                theme="outline"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+              />
+            ) : (
+              <div className="oauth-disabled">
+                <p>Sign-in button disabled until OAuth is configured.</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {isLoading && (
           <div className="loading-indicator">
