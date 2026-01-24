@@ -10,7 +10,7 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 
 ## Current Status
 
-**Overall Progress:** 3 of 5 tasks complete (60%)
+**Overall Progress:** 3 of 5 tasks complete (60%) + Preparation work for Task 4
 
 - ✅ **Task 1: Project Setup** - COMPLETE (Commit: `7077f91`)
 - ✅ **Task 2: User Authentication** - COMPLETE (Commit: `57e391e`)
@@ -18,17 +18,19 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 - ✅ **Task 3: Data Models** - COMPLETE (Branch: `feature/phase1-data-models`)
 - ✅ **Bugfix: Login Redirect & Password Improvements** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
 - ✅ **Feature: User Details Modal & Admin Management** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
-- 🔲 **Task 4: Basic Level Editor** - Not Started
+- ✅ **Preparation: Store Updates & Level Storage** - COMPLETE (Branch: `feature/prepare-level-editor`)
+- 🔲 **Task 4: Basic Level Editor** - Ready to Start
 - 🔲 **Task 5: Local Storage** - Not Started
 
 **Last Updated:** 2026-01-23
 
 **Recent Updates:**
-- Added login redirect after successful authentication
-- Improved password handling with trimming and verification
-- Added user details modal with profile editing
-- Added admin user management interface
-- Fixed modal positioning and z-index issues
+- Updated editorStore and gameStore to use real models from Task 3
+- Implemented minimal localStorage-based level storage (temporary for Task 4)
+- Added LevelEditor placeholder component with routing
+- Added platform management actions to editorStore
+- Added game management actions to gameStore
+- All stores now type-safe with proper TypeScript models
 
 ---
 
@@ -744,6 +746,56 @@ git push origin feature/phase1-data-models
 - [x] Type checking passes ✅
 - [x] Linting passes ✅
 - [x] Updated authService to use new User model
+
+---
+
+## Preparation: Store Updates & Level Storage (for Task 4)
+
+### Branch: `feature/prepare-level-editor`
+
+### Overview
+Updates to editorStore, gameStore, and storageService to use real models from Task 3, implement minimal level storage, and add LevelEditor routing. Ensures Task 4 can proceed with type-safe stores and working save/load.
+
+### Development Steps
+
+#### Preparation.1 Update Editor Store
+- [x] Replace placeholder Level/Platform types with models from `@/models`
+- [x] Add `placePlatform`, `deletePlatform`, `updatePlatformProperties` actions
+- [x] Add logging to all editor store actions
+- [x] Ensure `setCurrentLevel(null)` clears selected platform
+
+#### Preparation.2 Update Game Store
+- [x] Replace placeholder Game type with model from `@/models`
+- [x] Add `addGame`, `updateGame`, `deleteGame` actions
+- [x] Add logging to all game store actions
+
+#### Preparation.3 Minimal Level Storage
+- [x] Implement `saveLevel`, `loadLevel`, `listLevels`, `deleteLevel` using localStorage
+- [x] Mark as TEMPORARY (replaced with IndexedDB in Task 5)
+- [x] Add error handling and logging
+
+#### Preparation.4 Level Editor Routing
+- [x] Create `LevelEditor` placeholder component
+- [x] Add `/editor/:levelId?` route in App.tsx
+- [x] Load level from storage when levelId provided; redirect when missing
+
+### Testing Requirements
+- [x] Unit tests for editorStore (placePlatform, deletePlatform, updatePlatformProperties, etc.)
+- [x] Unit tests for gameStore (addGame, updateGame, deleteGame, etc.)
+- [x] Unit tests for storageService level operations (save, load, list, delete)
+
+### Commit & PR
+```bash
+git add .
+git commit -m "refactor: prepare stores and storage for level editor (Task 4)
+
+- Update editorStore/gameStore to use real models
+- Implement minimal localStorage level storage
+- Add LevelEditor placeholder and /editor route
+- Add platform/game management actions
+- Add comprehensive tests"
+git push origin feature/prepare-level-editor
+```
 
 ---
 
