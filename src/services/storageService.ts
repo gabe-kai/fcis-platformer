@@ -94,14 +94,34 @@ class StorageServiceImpl implements StorageService {
   }
 
   // Level operations
+  // TEMPORARY: Using localStorage for Task 4. Will be replaced with IndexedDB in Task 5.
   async saveLevel(level: Level): Promise<void> {
-    logger.debug('Saving level', {
+    logger.info('Saving level', {
       component: 'StorageService',
       operation: 'saveLevel',
       levelId: level.id,
     });
-    // TODO: Implement in Task 5
-    throw new Error('Not implemented yet - will be implemented in Task 5');
+    
+    try {
+      const levelsKey = 'fcis_levels';
+      const existing = localStorage.getItem(levelsKey);
+      const levels: Record<string, Level> = existing ? JSON.parse(existing) : {};
+      levels[level.id] = level;
+      localStorage.setItem(levelsKey, JSON.stringify(levels));
+      
+      logger.info('Level saved successfully', {
+        component: 'StorageService',
+        operation: 'saveLevel',
+        levelId: level.id,
+      });
+    } catch (error) {
+      logger.error('Failed to save level', {
+        component: 'StorageService',
+        operation: 'saveLevel',
+        levelId: level.id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   async loadLevel(levelId: string): Promise<Level | null> {
@@ -110,8 +130,45 @@ class StorageServiceImpl implements StorageService {
       operation: 'loadLevel',
       levelId,
     });
-    // TODO: Implement in Task 5
-    throw new Error('Not implemented yet - will be implemented in Task 5');
+    
+    try {
+      const levelsKey = 'fcis_levels';
+      const existing = localStorage.getItem(levelsKey);
+      if (!existing) {
+        logger.debug('No levels found in storage', {
+          component: 'StorageService',
+          operation: 'loadLevel',
+          levelId,
+        });
+        return null;
+      }
+      
+      const levels: Record<string, Level> = JSON.parse(existing);
+      const level = levels[levelId] || null;
+      
+      if (level) {
+        logger.info('Level loaded successfully', {
+          component: 'StorageService',
+          operation: 'loadLevel',
+          levelId,
+        });
+      } else {
+        logger.debug('Level not found', {
+          component: 'StorageService',
+          operation: 'loadLevel',
+          levelId,
+        });
+      }
+      
+      return level;
+    } catch (error) {
+      logger.error('Failed to load level', {
+        component: 'StorageService',
+        operation: 'loadLevel',
+        levelId,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   async listLevels(gameId: string): Promise<Level[]> {
@@ -120,18 +177,80 @@ class StorageServiceImpl implements StorageService {
       operation: 'listLevels',
       gameId,
     });
-    // TODO: Implement in Task 5
-    throw new Error('Not implemented yet - will be implemented in Task 5');
+    
+    try {
+      const levelsKey = 'fcis_levels';
+      const existing = localStorage.getItem(levelsKey);
+      if (!existing) {
+        return [];
+      }
+      
+      const levels: Record<string, Level> = JSON.parse(existing);
+      const gameLevels = Object.values(levels).filter(level => level.gameId === gameId);
+      
+      logger.debug('Levels listed', {
+        component: 'StorageService',
+        operation: 'listLevels',
+        gameId,
+        count: gameLevels.length,
+      });
+      
+      return gameLevels;
+    } catch (error) {
+      logger.error('Failed to list levels', {
+        component: 'StorageService',
+        operation: 'listLevels',
+        gameId,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   async deleteLevel(levelId: string): Promise<void> {
-    logger.debug('Deleting level', {
+    logger.info('Deleting level', {
       component: 'StorageService',
       operation: 'deleteLevel',
       levelId,
     });
-    // TODO: Implement in Task 5
-    throw new Error('Not implemented yet - will be implemented in Task 5');
+    
+    try {
+      const levelsKey = 'fcis_levels';
+      const existing = localStorage.getItem(levelsKey);
+      if (!existing) {
+        logger.warn('No levels found to delete', {
+          component: 'StorageService',
+          operation: 'deleteLevel',
+          levelId,
+        });
+        return;
+      }
+      
+      const levels: Record<string, Level> = JSON.parse(existing);
+      if (!levels[levelId]) {
+        logger.warn('Level not found for deletion', {
+          component: 'StorageService',
+          operation: 'deleteLevel',
+          levelId,
+        });
+        return;
+      }
+      
+      delete levels[levelId];
+      localStorage.setItem(levelsKey, JSON.stringify(levels));
+      
+      logger.info('Level deleted successfully', {
+        component: 'StorageService',
+        operation: 'deleteLevel',
+        levelId,
+      });
+    } catch (error) {
+      logger.error('Failed to delete level', {
+        component: 'StorageService',
+        operation: 'deleteLevel',
+        levelId,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 
   // WorldMap operations

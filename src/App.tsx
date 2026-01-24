@@ -7,6 +7,7 @@ import { Login } from '@/components/auth/Login';
 import { UserProfile } from '@/components/auth/UserProfile';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
+import { LevelEditor } from '@/components/level-editor/LevelEditor';
 import './App.css';
 
 function Dashboard() {
@@ -90,6 +91,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/editor/:levelId?"
+            element={
+              <ProtectedRoute>
+                <LevelEditor />
               </ProtectedRoute>
             }
           />
