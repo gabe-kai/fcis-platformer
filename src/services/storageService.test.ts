@@ -21,8 +21,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
       const levelWithPlatform = updateLevel(level, { platforms: [platform] });
 
@@ -41,8 +41,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Original Title',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level1);
@@ -51,8 +51,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Updated Title',
-        width: 1000,
-        height: 800,
+        width: 12,
+        height: 12,
       });
 
       await storageService.saveLevel(level2);
@@ -60,7 +60,7 @@ describe('StorageService - Level Operations', () => {
       const saved = localStorage.getItem('fcis_levels');
       const levels = JSON.parse(saved!);
       expect(levels['level-1'].title).toBe('Updated Title');
-      expect(levels['level-1'].width).toBe(1000);
+      expect(levels['level-1'].width).toBe(12);
     });
 
     it('should save multiple levels', async () => {
@@ -68,16 +68,16 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Level 1',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       const level2 = createLevel({
         id: 'level-2',
         gameId: 'game-1',
         title: 'Level 2',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level1);
@@ -100,8 +100,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await expect(storageService.saveLevel(level)).rejects.toThrow();
@@ -115,8 +115,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level);
@@ -125,8 +125,8 @@ describe('StorageService - Level Operations', () => {
       expect(loaded).toBeTruthy();
       expect(loaded?.id).toBe('level-1');
       expect(loaded?.title).toBe('Test Level');
-      expect(loaded?.width).toBe(800);
-      expect(loaded?.height).toBe(600);
+      expect(loaded?.width).toBe(10);
+      expect(loaded?.height).toBe(10);
     });
 
     it('should return null when level not found', async () => {
@@ -150,8 +150,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
       const levelWithPlatform = updateLevel(level, { platforms: [platform] });
 
@@ -179,24 +179,24 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Level 1',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       const level2 = createLevel({
         id: 'level-2',
         gameId: 'game-1',
         title: 'Level 2',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       const level3 = createLevel({
         id: 'level-3',
         gameId: 'game-2',
         title: 'Level 3',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level1);
@@ -215,8 +215,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Level 1',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level);
@@ -236,8 +236,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level);
@@ -252,16 +252,16 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Level 1',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       const level2 = createLevel({
         id: 'level-2',
         gameId: 'game-1',
         title: 'Level 2',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level1);
@@ -289,8 +289,8 @@ describe('StorageService - Level Operations', () => {
         id: 'level-1',
         gameId: 'game-1',
         title: 'Test Level',
-        width: 800,
-        height: 600,
+        width: 10,
+        height: 10,
       });
 
       await storageService.saveLevel(level);
@@ -302,6 +302,86 @@ describe('StorageService - Level Operations', () => {
 
       await expect(storageService.deleteLevel('level-1')).rejects.toThrow();
       Storage.prototype.setItem = originalSetItem;
+    });
+  });
+
+  describe('Background Image Operations', () => {
+    const BACKGROUND_IMAGES_KEY = 'fcis_background_images';
+
+    it('should save background image to localStorage', async () => {
+      const entry = {
+        id: 'bg_1',
+        name: 'My Background',
+        dataUrl: 'data:image/png;base64,abc123',
+        createdAt: 1000,
+      };
+      await storageService.saveBackgroundImage(entry);
+      const saved = localStorage.getItem(BACKGROUND_IMAGES_KEY);
+      expect(saved).toBeTruthy();
+      const map = JSON.parse(saved!);
+      expect(map['bg_1']).toBeDefined();
+      expect(map['bg_1'].id).toBe('bg_1');
+      expect(map['bg_1'].name).toBe('My Background');
+      expect(map['bg_1'].dataUrl).toBe(entry.dataUrl);
+      expect(map['bg_1'].createdAt).toBe(1000);
+    });
+
+    it('should list background images sorted by createdAt descending', async () => {
+      await storageService.saveBackgroundImage({
+        id: 'bg_1',
+        name: 'First',
+        dataUrl: 'data:image/png;base64,a',
+        createdAt: 1000,
+      });
+      await storageService.saveBackgroundImage({
+        id: 'bg_2',
+        name: 'Second',
+        dataUrl: 'data:image/png;base64,b',
+        createdAt: 2000,
+      });
+      const list = await storageService.listBackgroundImages();
+      expect(list).toHaveLength(2);
+      expect(list[0].id).toBe('bg_2');
+      expect(list[1].id).toBe('bg_1');
+    });
+
+    it('should return empty array when no background images exist', async () => {
+      const list = await storageService.listBackgroundImages();
+      expect(list).toEqual([]);
+    });
+
+    it('should delete background image by id', async () => {
+      await storageService.saveBackgroundImage({
+        id: 'bg_1',
+        name: 'To Delete',
+        dataUrl: 'data:image/png;base64,x',
+        createdAt: 1000,
+      });
+      await storageService.deleteBackgroundImage('bg_1');
+      const list = await storageService.listBackgroundImages();
+      expect(list).toHaveLength(0);
+      const saved = localStorage.getItem(BACKGROUND_IMAGES_KEY);
+      const map = JSON.parse(saved!);
+      expect(map['bg_1']).toBeUndefined();
+    });
+
+    it('should not delete other background images when deleting one', async () => {
+      await storageService.saveBackgroundImage({
+        id: 'bg_1',
+        name: 'One',
+        dataUrl: 'data:image/png;base64,a',
+        createdAt: 1000,
+      });
+      await storageService.saveBackgroundImage({
+        id: 'bg_2',
+        name: 'Two',
+        dataUrl: 'data:image/png;base64,b',
+        createdAt: 2000,
+      });
+      await storageService.deleteBackgroundImage('bg_1');
+      const list = await storageService.listBackgroundImages();
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe('bg_2');
     });
   });
 });

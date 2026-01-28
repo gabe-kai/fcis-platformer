@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { useAuthStore } from '@/stores/authStore';
 import { logger } from '@/utils/logger';
@@ -8,17 +8,23 @@ import { UserProfile } from '@/components/auth/UserProfile';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 import { LevelEditor } from '@/components/level-editor/LevelEditor';
+import { LevelBrowser } from '@/components/level-editor/LevelBrowser';
 import './App.css';
 
 function Dashboard() {
   const { user } = useAuthStore();
-  // Show password change modal if required (derived state)
+  const navigate = useNavigate();
+  const [isCreating, setIsCreating] = useState(false);
   // Show password change modal if required (derived state)
   const showPasswordChange = user?.provider === 'local' && user?.requiresPasswordChange === true;
 
   const handlePasswordChangeClose = () => {
     // Modal will close automatically when password is changed and requiresPasswordChange becomes false
     // This handler is here for the modal's onClose prop, but the modal won't close if required=true
+  };
+
+  const handleOpenLevelBrowser = () => {
+    navigate('/levels');
   };
 
   return (
@@ -32,18 +38,22 @@ function Dashboard() {
           <div className="welcome-section">
             <h2>Welcome, {user?.username || 'User'}!</h2>
             <p>Your game editor is ready. Start creating your platformer game!</p>
+            
             <div className="feature-cards">
               <div className="feature-card">
                 <h3>Create Games</h3>
                 <p>Build your own platformer games with custom graphics</p>
+                <p className="feature-note">Coming soon</p>
               </div>
-              <div className="feature-card">
+              <div className="feature-card clickable" onClick={handleOpenLevelBrowser}>
                 <h3>Design Levels</h3>
                 <p>Use the level editor to create amazing platformer levels</p>
+                <p className="feature-action">Click to browse levels!</p>
               </div>
               <div className="feature-card">
                 <h3>Share & Play</h3>
                 <p>Share your games with friends and play together</p>
+                <p className="feature-note">Coming soon</p>
               </div>
             </div>
           </div>
@@ -95,7 +105,15 @@ function App() {
             }
           />
           <Route
-            path="/editor/:levelId?"
+            path="/levels"
+            element={
+              <ProtectedRoute>
+                <LevelBrowser />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/editor/:levelId"
             element={
               <ProtectedRoute>
                 <LevelEditor />

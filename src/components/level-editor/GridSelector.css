@@ -1,0 +1,84 @@
+.grid-selector {
+  padding: 1rem;
+  background-color: #2c3e50;
+  border-right: 1px solid #34495e;
+  border-top: 1px solid #34495e;
+  min-width: 150px;
+}
+
+.grid-selector h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #ecf0f1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.grid-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.grid-toggle {
+  padding: 0.5rem;
+  background-color: #34495e;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  color: #ecf0f1;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.grid-toggle:hover {
+  background-color: #3d566e;
+  border-color: #3498db;
+}
+
+.grid-toggle.active {
+  background-color: #3498db;
+  border-color: #2980b9;
+  color: #ffffff;
+}
+
+.grid-size-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.grid-size-selector label {
+  font-size: 0.85rem;
+  color: #bdc3c7;
+}
+
+.grid-size-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.grid-size-button {
+  padding: 0.4rem 0.6rem;
+  background-color: #34495e;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  color: #ecf0f1;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.grid-size-button:hover {
+  background-color: #3d566e;
+  border-color: #3498db;
+}
+
+.grid-size-button.active {
+  background-color: #3498db;
+  border-color: #2980b9;
+  color: #ffffff;
+}

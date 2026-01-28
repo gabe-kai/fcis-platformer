@@ -77,12 +77,15 @@ This document outlines the high-level implementation plan for the FCIS Platforme
    - **Branch:** `feature/prepare-level-editor`
    - Prepares foundation for Task 4 with type-safe stores and working save/load
 
-4. 🔲 **Basic level editor** - Ready to Start
-   - Canvas-based editor view
-   - Grid system (toggleable)
-   - Platform placement tool
-   - Basic platform shapes (rectangles)
-   - Save/load level functionality
+4. ✅ **Basic level editor** - COMPLETE
+   - ✅ Canvas-based editor view
+   - ✅ Grid system (toggleable)
+   - ✅ Platform placement tool
+   - ✅ Basic platform shapes (rectangles)
+   - ✅ Save/load level functionality
+   - ✅ Autosave (debounced 2s) and last-saved timestamp in header
+   - ✅ View mode toggle (Grid | Texture): solid blocks for print/color, full tiles for in-game preview
+   - **Branch:** `feature/phase1-level-editor`
 
 5. 🔲 **Local storage** - Not Started
    - Implement IndexedDB or localStorage wrapper
@@ -94,11 +97,11 @@ This document outlines the high-level implementation plan for the FCIS Platforme
 - ✅ Unified logging system
 - ✅ Testing infrastructure
 - ✅ Working authentication system
-- 🔲 Basic level editor with platform placement
-- 🔲 Local game storage (minimal level storage implemented)
+- ✅ Basic level editor with platform placement
+- 🔲 Local game storage (minimal level storage implemented, full IndexedDB in Task 5)
 
 **Estimated Duration:** 4-6 weeks  
-**Progress:** 3 of 5 tasks complete (60%) + preparation work
+**Progress:** 4 of 5 tasks complete (80%) + preparation work
 
 ---
 

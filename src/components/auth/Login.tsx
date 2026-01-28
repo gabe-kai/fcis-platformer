@@ -90,7 +90,7 @@ export function Login() {
     }
 
     try {
-      await loginLocal(username.trim(), password);
+      await loginLocal(username.trim(), password.trim());
       // Navigate to dashboard or intended destination
       const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
       navigate(from, { replace: true });
@@ -166,7 +166,6 @@ export function Login() {
                 placeholder="Enter username"
                 disabled={isLoading}
                 autoComplete="username"
-                required
               />
             </div>
             <div className="form-group">
@@ -179,7 +178,6 @@ export function Login() {
                 placeholder="Enter password"
                 disabled={isLoading}
                 autoComplete="current-password"
-                required
               />
             </div>
             {showDefaultAdminCredentials && (

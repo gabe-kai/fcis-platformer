@@ -5,6 +5,7 @@ import type { User } from '@/models/User';
 
 describe('AuthStore', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     // Clear store and storage
     authService.reset();
     useAuthStore.setState({

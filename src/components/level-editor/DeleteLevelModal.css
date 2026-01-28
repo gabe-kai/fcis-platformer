@@ -1,0 +1,128 @@
+.delete-level-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  padding: 2rem;
+}
+
+.delete-level-modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.delete-level-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.delete-level-modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #333;
+}
+
+.delete-level-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.delete-level-modal-close:hover {
+  background-color: #f5f5f5;
+}
+
+.delete-level-modal-body {
+  padding: 1.5rem;
+}
+
+.delete-level-modal-body p {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #444;
+  line-height: 1.5;
+}
+
+.delete-level-modal-body p strong {
+  color: #333;
+}
+
+.delete-level-modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #555;
+  user-select: none;
+}
+
+.delete-level-modal-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #3498db;
+}
+
+.delete-level-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #eee;
+  background: #fafafa;
+}
+
+.delete-level-modal-cancel {
+  padding: 0.5rem 1rem;
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.delete-level-modal-cancel:hover {
+  background: #d0d0d0;
+}
+
+.delete-level-modal-delete {
+  padding: 0.5rem 1rem;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.delete-level-modal-delete:hover {
+  background: #c0392b;
+}

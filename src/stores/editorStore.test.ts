@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { useEditorStore } from './editorStore';
 import { createLevel, updateLevel } from '@/models/Level';
 import { createPlatform } from '@/models/Platform';
@@ -10,6 +10,7 @@ describe('EditorStore', () => {
       selectedTool: 'select',
       selectedPlatform: null,
       gridEnabled: true,
+      viewMode: 'texture',
       gridSize: 32,
     });
   });
@@ -127,6 +128,19 @@ describe('EditorStore', () => {
     });
   });
 
+  describe('setViewMode', () => {
+    it('should set view mode to grid', () => {
+      useEditorStore.getState().setViewMode('grid');
+      expect(useEditorStore.getState().viewMode).toBe('grid');
+    });
+
+    it('should set view mode to texture', () => {
+      useEditorStore.getState().setViewMode('grid');
+      useEditorStore.getState().setViewMode('texture');
+      expect(useEditorStore.getState().viewMode).toBe('texture');
+    });
+  });
+
   describe('placePlatform', () => {
     it('should add platform to current level', () => {
       const level = createLevel({
@@ -192,6 +206,39 @@ describe('EditorStore', () => {
 
       const state = useEditorStore.getState();
       expect(state.currentLevel).toBeNull();
+    });
+
+    it('should prevent placing overlapping platforms', () => {
+      const level = createLevel({
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+      });
+
+      const platform1 = createPlatform({
+        id: 'platform-1',
+        levelId: 'level-1',
+        bounds: { x: 0, y: 0, width: 100, height: 50 },
+      });
+
+      const platform2 = createPlatform({
+        id: 'platform-2',
+        levelId: 'level-1',
+        bounds: { x: 50, y: 25, width: 100, height: 50 }, // Overlaps with platform1
+      });
+
+      useEditorStore.getState().setCurrentLevel(level);
+      useEditorStore.getState().placePlatform(platform1);
+      
+      // Try to place overlapping platform
+      useEditorStore.getState().placePlatform(platform2);
+
+      const state = useEditorStore.getState();
+      // Should only have platform1 (platform2 was rejected due to overlap)
+      expect(state.currentLevel?.platforms).toHaveLength(1);
+      expect(state.currentLevel?.platforms[0].id).toBe('platform-1');
     });
   });
 
@@ -318,6 +365,79 @@ describe('EditorStore', () => {
 
     it('should not update platform when no current level', () => {
       useEditorStore.getState().updatePlatformProperties('platform-1', { type: 'moving' });
+      const state = useEditorStore.getState();
+      expect(state.currentLevel).toBeNull();
+    });
+
+    it('should prevent updating platform if it would overlap', () => {
+      const p1 = createPlatform({
+        id: 'platform-1',
+        levelId: 'level-1',
+        bounds: { x: 0, y: 0, width: 100, height: 50 },
+      });
+      const p2 = createPlatform({
+        id: 'platform-2',
+        levelId: 'level-1',
+        bounds: { x: 150, y: 0, width: 100, height: 50 },
+      });
+
+      const level = createLevel({
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+      });
+      const levelWithPlatforms = updateLevel(level, { platforms: [p1, p2] });
+
+      useEditorStore.getState().setCurrentLevel(levelWithPlatforms);
+      useEditorStore.getState().setSelectedPlatform(p2);
+      
+      // Try to move p2 to overlap with p1
+      useEditorStore.getState().updatePlatformProperties('platform-2', {
+        bounds: { x: 50, y: 0, width: 100, height: 50 },
+      });
+
+      const state = useEditorStore.getState();
+      // Platform should not have moved (still at x: 150)
+      const updated = state.currentLevel?.platforms.find((p) => p.id === 'platform-2');
+      expect(updated?.bounds.x).toBe(150);
+    });
+  });
+
+  describe('updateLevelDimensions', () => {
+    it('should update level width and height', () => {
+      const level = createLevel({
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+      });
+
+      const originalUpdatedAt = level.updatedAt;
+      useEditorStore.getState().setCurrentLevel(level);
+      
+      // Small delay to ensure timestamp difference
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          useEditorStore.getState().updateLevelDimensions(1200, 900);
+
+          const state = useEditorStore.getState();
+          expect(state.currentLevel?.width).toBe(1200);
+          expect(state.currentLevel?.height).toBe(900);
+          expect(state.currentLevel?.updatedAt).toBeGreaterThanOrEqual(originalUpdatedAt);
+          resolve();
+        }, 10);
+      });
+    });
+
+    it('should not update if no current level', () => {
+      useEditorStore.getState().setCurrentLevel(null);
+      
+      // Should not throw
+      useEditorStore.getState().updateLevelDimensions(1200, 900);
+      
       const state = useEditorStore.getState();
       expect(state.currentLevel).toBeNull();
     });

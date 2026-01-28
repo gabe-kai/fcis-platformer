@@ -10,7 +10,7 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 
 ## Current Status
 
-**Overall Progress:** 3 of 5 tasks complete (60%) + Preparation work for Task 4
+**Overall Progress:** 4 of 5 tasks complete (80%) + Preparation work
 
 - ✅ **Task 1: Project Setup** - COMPLETE (Commit: `7077f91`)
 - ✅ **Task 2: User Authentication** - COMPLETE (Commit: `57e391e`)
@@ -19,7 +19,7 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 - ✅ **Bugfix: Login Redirect & Password Improvements** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
 - ✅ **Feature: User Details Modal & Admin Management** - COMPLETE (Branch: `bugfix/login-redirect-and-password-fixes`)
 - ✅ **Preparation: Store Updates & Level Storage** - COMPLETE (Branch: `feature/prepare-level-editor`)
-- 🔲 **Task 4: Basic Level Editor** - Ready to Start
+- ✅ **Task 4: Basic Level Editor** - COMPLETE (Branch: `feature/phase1-level-editor`)
 - 🔲 **Task 5: Local Storage** - Not Started
 
 **Last Updated:** 2026-01-23
@@ -813,142 +813,130 @@ git checkout -b feature/phase1-level-editor
 ### Development Steps
 
 #### 4.1 Create Level Editor Component Structure
-- [ ] Create `src/components/level-editor/LevelCanvas.tsx`:
-  - [ ] Canvas element setup
-  - [ ] Canvas context initialization
-  - [ ] Resize handling
-  - [ ] Basic rendering loop
-- [ ] Create `src/components/level-editor/ToolPalette.tsx`:
-  - [ ] Tool selection UI
-  - [ ] Platform tool button
-  - [ ] Select tool button
-- [ ] Create `src/components/level-editor/PropertiesPanel.tsx`:
-  - [ ] Selected object properties display
-  - [ ] Property editing inputs
-- [ ] Create `src/components/level-editor/GridSelector.tsx`:
-  - [ ] Grid toggle button
-  - [ ] Grid size selector
+- [x] Create `src/components/level-editor/LevelCanvas.tsx`:
+  - [x] Canvas element setup
+  - [x] Canvas context initialization
+  - [x] Resize handling
+  - [x] Basic rendering loop
+- [x] Create `src/components/level-editor/ToolPalette.tsx`:
+  - [x] Tool selection UI
+  - [x] Platform tool button
+  - [x] Select tool button
+- [x] Create `src/components/level-editor/PropertiesPanel.tsx`:
+  - [x] Selected object properties display
+  - [x] Property editing inputs
+- [x] Create `src/components/level-editor/GridSelector.tsx`:
+  - [x] Grid toggle button
+  - [x] Grid size selector
 
 #### 4.2 Implement Grid System
-- [ ] Create `src/utils/grid.ts`:
-  - [ ] `calculateGridPosition(x, y, gridSize): Point`
-  - [ ] `drawGrid(canvas, gridSize, offset): void`
-  - [ ] `snapToGrid(value, gridSize): number`
-- [ ] Add grid overlay rendering to canvas
-- [ ] Add grid toggle functionality
-- [ ] Add grid size configuration (16px, 32px, 64px)
+- [x] Create `src/utils/grid.ts`:
+  - [x] `calculateGridPosition(x, y, gridSize): Point`
+  - [x] `drawGrid(canvas, gridSize, offset): void`
+  - [x] `snapToGrid(value, gridSize): number`
+- [x] Add grid overlay rendering to canvas
+- [x] Add grid toggle functionality
+- [x] Add grid size configuration (16px, 32px, 64px)
 
 #### 4.3 Implement Platform Placement Tool
-- [ ] Create platform placement logic:
-  - [ ] Mouse/touch event handling
-  - [ ] Click to place platform
-  - [ ] Drag to create platform
-  - [ ] Snap to grid option
-- [ ] Create platform rendering:
-  - [ ] Draw rectangle platforms
-  - [ ] Visual feedback (hover, selected)
-  - [ ] Platform selection
-- [ ] Add platform to level data structure
+- [x] Create platform placement logic:
+  - [x] Mouse/touch event handling
+  - [x] Click to place platform
+  - [x] Drag to create platform
+  - [x] Snap to grid option
+- [x] Create platform rendering:
+  - [x] Draw rectangle platforms
+  - [x] Visual feedback (hover, selected)
+  - [x] Platform selection
+- [x] Add platform to level data structure
 
 #### 4.4 Implement Basic Platform Shapes
-- [ ] Rectangle platform:
-  - [ ] Create, render, select
-  - [ ] Resize handles
-  - [ ] Position editing
-- [ ] Platform properties:
-  - [ ] Position (x, y)
-  - [ ] Size (width, height)
-  - [ ] Type (solid, moving, destructible)
+- [x] Rectangle platform:
+  - [x] Create, render, select
+  - [x] Resize handles (via properties panel)
+  - [x] Position editing
+- [x] Platform properties:
+  - [x] Position (x, y)
+  - [x] Size (width, height)
+  - [x] Type (solid, moving, destructible)
 
 #### 4.5 Implement Save/Load Functionality
-- [ ] Create level save function:
-  - [ ] Serialize level data
-  - [ ] Save to storage service (basic)
-- [ ] Create level load function:
-  - [ ] Deserialize level data
-  - [ ] Load from storage service
-  - [ ] Restore platform positions
-- [ ] Add save/load UI buttons
-- [ ] Add save confirmation
+- [x] Create level save function:
+  - [x] Serialize level data
+  - [x] Save to storage service (basic)
+- [x] Create level load function:
+  - [x] Deserialize level data
+  - [x] Load from storage service
+  - [x] Restore platform positions
+- [x] Add save/load UI buttons
+- [x] Add save confirmation (status feedback)
+- [x] **Autosave**: Debounced save 2s after level changes; skip first run after load
+- [x] **Last-saved indicator**: Timestamp in header next to Save button ("Last saved: \<time\>" or "—"); updates on manual save and autosave
 
 #### 4.6 Create Editor Store
-- [ ] Create `src/stores/editorStore.ts`:
-  - [ ] Current level state
-  - [ ] Selected tool
-  - [ ] Selected platform
-  - [ ] Grid settings
-  - [ ] Canvas state (zoom, pan)
-- [ ] Add editor actions:
-  - [ ] Place platform
-  - [ ] Select platform
-  - [ ] Delete platform
-  - [ ] Update platform properties
-  - [ ] Toggle grid
+- [x] Create `src/stores/editorStore.ts`:
+  - [x] Current level state
+  - [x] Selected tool
+  - [x] Selected platform
+  - [x] Grid settings
+  - [x] View mode (grid | texture)
+  - [x] Canvas state (zoom, pan - basic offset support)
+- [x] Add editor actions:
+  - [x] Place platform
+  - [x] Select platform
+  - [x] Delete platform
+  - [x] Update platform properties
+  - [x] Toggle grid
+  - [x] Set view mode (grid | texture)
+
+#### 4.7 Editor View Mode (Grid / Texture)
+- [x] **Store**: `viewMode: 'grid' | 'texture'` and `setViewMode(mode)` in editor store
+- [x] **Canvas**: Grid mode draws solid-color blocks only (no textures, no background); Texture mode draws full tiles and background
+- [x] **Header**: Toggle (Grid | Texture) in editor header; Grid for printing/coloring/re-upload, Texture for in-game preview
 
 ### Logging Implementation
 
-- [ ] Add logging to level editor:
-  ```typescript
-  // Platform placement
-  logger.info('Platform placed', { 
-    component: 'LevelEditor',
-    levelId: level.id,
-    operation: 'place_platform' 
-  }, { platformId, position: { x, y } });
-  
-  // Save operation
-  logger.info('Level saved', { 
-    component: 'LevelEditor',
-    levelId: level.id,
-    operation: 'save' 
-  });
-  
-  // Load operation
-  logger.info('Level loaded', { 
-    component: 'LevelEditor',
-    levelId: level.id,
-    operation: 'load' 
-  });
-  
-  // Errors
-  logger.error('Failed to save level', { 
-    component: 'LevelEditor',
-    levelId: level.id,
-    operation: 'save' 
-  }, { error: error.message });
-  ```
-
-- [ ] Log tool changes
-- [ ] Log grid toggles
-- [ ] Log platform property updates
+- [x] Add logging to level editor:
+  - [x] Platform placement logging (in LevelCanvas)
+  - [x] Save operation logging (in LevelEditor)
+  - [x] Load operation logging (in LevelEditor)
+  - [x] Error logging for save/load failures
+- [x] Log tool changes (in ToolPalette)
+- [x] Log grid toggles (in GridSelector)
+- [x] Log platform property updates (in PropertiesPanel)
 
 ### Testing Requirements
 
-- [ ] **Unit Tests:**
-  - [ ] Test grid utilities:
-    - [ ] `calculateGridPosition()` - correct snapping
-    - [ ] `snapToGrid()` - handles various inputs
-    - [ ] Grid drawing functions
-  - [ ] Test platform placement logic:
-    - [ ] Platform creation
-    - [ ] Platform selection
-    - [ ] Platform deletion
-    - [ ] Platform property updates
+- [x] **Unit Tests:**
+  - [x] Test grid utilities:
+    - [x] `calculateGridPosition()` - correct snapping
+    - [x] `snapToGrid()` - handles various inputs
+    - [x] Grid drawing functions
+  - [x] Test platform placement logic:
+    - [x] Platform creation (covered in editorStore tests)
+    - [x] Platform selection (covered in LevelCanvas tests)
+    - [x] Platform deletion (covered in PropertiesPanel tests)
+    - [x] Platform property updates (covered in PropertiesPanel tests)
 
-- [ ] **Integration Tests:**
-  - [ ] Test editor store:
-    - [ ] State updates correctly
-    - [ ] Actions work as expected
-  - [ ] Test save/load flow:
-    - [ ] Save level with platforms
-    - [ ] Load level and verify platforms restored
+- [x] **Integration Tests:**
+  - [x] Test editor store:
+    - [x] State updates correctly (editorStore.test.ts)
+    - [x] Actions work as expected (editorStore.test.ts)
+  - [x] Test save/load flow:
+    - [x] Save level with platforms (LevelEditor.test.ts)
+    - [x] Load level and verify platforms restored (LevelEditor.test.ts)
 
-- [ ] **Component Tests:**
-  - [ ] Test LevelCanvas rendering
-  - [ ] Test ToolPalette interactions
-  - [ ] Test PropertiesPanel updates
+- [x] **Component Tests:**
+  - [x] Test LevelCanvas rendering (LevelCanvas.test.tsx)
+  - [x] Test ToolPalette interactions (ToolPalette.test.tsx)
+  - [x] Test PropertiesPanel updates (PropertiesPanel.test.tsx)
+  - [x] Test GridSelector interactions (GridSelector.test.tsx)
+  - [x] Test LevelEditor integration (LevelEditor.test.tsx)
 
-- [ ] **Coverage Goal:** 85% for level editor components and utilities
+- [x] **Coverage Goal:** 85% for level editor components and utilities
+  - ✅ Grid utilities: 100% coverage
+  - ✅ Component tests: All major components tested
+  - ✅ Integration tests: Save/load flow tested
 
 ### Commit & PR
 
@@ -956,15 +944,22 @@ git checkout -b feature/phase1-level-editor
 git add .
 git commit -m "feat(level-editor): implement basic level editor with platform placement
 
-- Create LevelCanvas component with HTML5 Canvas
-- Implement grid system with toggle and size options
-- Add platform placement tool with drag-and-drop
-- Support rectangle platform shapes
-- Add platform selection and property editing
-- Implement save/load functionality for levels
-- Create editor store with Zustand for state management
+- Create LevelCanvas component with HTML5 Canvas rendering
+- Implement grid system with toggle and size options (16px, 32px, 64px)
+- Add platform placement tool with drag-and-drop and snap-to-grid
+- Support rectangle platform shapes with visual feedback
+- Add platform selection and property editing via PropertiesPanel
+- Implement save/load functionality for levels with status feedback
+- Create ToolPalette and GridSelector components
+- Integrate all components into LevelEditor with proper layout
 - Add comprehensive logging following logging guide
-- Add unit, integration, and component tests (85% coverage)
+- Add unit, integration, and component tests (85%+ coverage)
+
+All core level editor functionality complete. Users can now:
+- Place platforms by dragging on canvas
+- Select and edit platform properties
+- Toggle grid visibility and adjust grid size
+- Save and load levels with platform data
 
 Closes #[issue-number]"
 
@@ -972,12 +967,14 @@ git push origin feature/phase1-level-editor
 ```
 
 **PR Checklist:**
-- [ ] Level editor renders correctly
-- [ ] Grid system works
-- [ ] Platform placement works
-- [ ] Save/load functionality works
-- [ ] Tests achieve 85% coverage
-- [ ] Logging follows logging guide
+- [x] Level editor renders correctly
+- [x] Grid system works
+- [x] Platform placement works
+- [x] Save/load functionality works
+- [x] Tests achieve 85% coverage
+- [x] Logging follows logging guide
+- [x] Type checking passes ✅
+- [x] All components tested ✅
 
 ---
 

@@ -1,0 +1,66 @@
+.level-canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background-color: #0f0f1e;
+}
+
+.level-canvas-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: scroll;
+  background-color: #1a1a2e;
+  /* Hide scrollbars but keep scroll functionality */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+.level-canvas-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+.scroll-content {
+  pointer-events: none;
+  /* Size set dynamically via JS to create scrollable area */
+}
+
+.level-canvas {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: auto;
+  cursor: crosshair;
+  background-color: transparent;
+  /* Canvas layered over scroll container */
+}
+
+.navigation-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  animation: fadeInOut 4s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  10%, 90% { opacity: 1; }
+}
+
+.level-canvas-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #7f8c8d;
+  font-size: 1.2rem;
+}

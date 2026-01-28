@@ -261,6 +261,38 @@
   cursor: not-allowed;
 }
 
+/* Preferences Section */
+.preferences-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #eee;
+}
+
+.preferences-section h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.preference-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #333;
+  user-select: none;
+}
+
+.preference-checkbox input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: #667eea;
+}
+
 /* Admin Tab Styles */
 .admin-section h3 {
   margin: 0 0 1.5rem 0;

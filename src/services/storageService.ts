@@ -1,5 +1,8 @@
 import { logger } from '@/utils/logger';
 import type { Game, Level, WorldMap, Graphic } from '@/models';
+import type { TileDefinition } from '@/models/Tile';
+
+export type BackgroundImageEntry = { id: string; name: string; dataUrl: string; createdAt: number };
 
 /**
  * Storage service interface
@@ -28,6 +31,17 @@ export interface StorageService {
   loadGraphic(graphicId: string): Promise<Graphic | null>;
   listGraphics(userId: string, gameId?: string): Promise<Graphic[]>;
   deleteGraphic(graphicId: string): Promise<void>;
+
+  // User Tile operations
+  saveUserTile(tile: TileDefinition): Promise<void>;
+  loadUserTile(tileId: string): Promise<TileDefinition | null>;
+  listUserTiles(): Promise<TileDefinition[]>;
+  deleteUserTile(tileId: string): Promise<void>;
+
+  // Background images (Library > Background images)
+  saveBackgroundImage(entry: BackgroundImageEntry): Promise<void>;
+  listBackgroundImages(): Promise<BackgroundImageEntry[]>;
+  deleteBackgroundImage(id: string): Promise<void>;
 }
 
 /**
@@ -324,6 +338,164 @@ class StorageServiceImpl implements StorageService {
     });
     // TODO: Implement in Task 5
     throw new Error('Not implemented yet - will be implemented in Task 5');
+  }
+
+  // User Tile operations
+  private readonly USER_TILES_KEY = 'fcis_user_tiles';
+
+  async saveUserTile(tile: TileDefinition): Promise<void> {
+    logger.info('Saving user tile', {
+      component: 'StorageService',
+      operation: 'saveUserTile',
+      tileId: tile.id,
+    });
+
+    try {
+      const existing = localStorage.getItem(this.USER_TILES_KEY);
+      const tiles: Record<string, TileDefinition> = existing ? JSON.parse(existing) : {};
+      tiles[tile.id] = tile;
+      localStorage.setItem(this.USER_TILES_KEY, JSON.stringify(tiles));
+
+      logger.info('User tile saved successfully', {
+        component: 'StorageService',
+        operation: 'saveUserTile',
+        tileId: tile.id,
+      });
+    } catch (error) {
+      logger.error('Failed to save user tile', {
+        component: 'StorageService',
+        operation: 'saveUserTile',
+        tileId: tile.id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async loadUserTile(tileId: string): Promise<TileDefinition | null> {
+    logger.debug('Loading user tile', {
+      component: 'StorageService',
+      operation: 'loadUserTile',
+      tileId,
+    });
+
+    try {
+      const existing = localStorage.getItem(this.USER_TILES_KEY);
+      if (!existing) return null;
+
+      const tiles: Record<string, TileDefinition> = JSON.parse(existing);
+      return tiles[tileId] || null;
+    } catch (error) {
+      logger.error('Failed to load user tile', {
+        component: 'StorageService',
+        operation: 'loadUserTile',
+        tileId,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async listUserTiles(): Promise<TileDefinition[]> {
+    logger.debug('Listing user tiles', {
+      component: 'StorageService',
+      operation: 'listUserTiles',
+    });
+
+    try {
+      const existing = localStorage.getItem(this.USER_TILES_KEY);
+      if (!existing) return [];
+
+      const tiles: Record<string, TileDefinition> = JSON.parse(existing);
+      return Object.values(tiles);
+    } catch (error) {
+      logger.error('Failed to list user tiles', {
+        component: 'StorageService',
+        operation: 'listUserTiles',
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async deleteUserTile(tileId: string): Promise<void> {
+    logger.info('Deleting user tile', {
+      component: 'StorageService',
+      operation: 'deleteUserTile',
+      tileId,
+    });
+
+    try {
+      const existing = localStorage.getItem(this.USER_TILES_KEY);
+      if (!existing) return;
+
+      const tiles: Record<string, TileDefinition> = JSON.parse(existing);
+      if (!tiles[tileId]) return;
+
+      delete tiles[tileId];
+      localStorage.setItem(this.USER_TILES_KEY, JSON.stringify(tiles));
+
+      logger.info('User tile deleted successfully', {
+        component: 'StorageService',
+        operation: 'deleteUserTile',
+        tileId,
+      });
+    } catch (error) {
+      logger.error('Failed to delete user tile', {
+        component: 'StorageService',
+        operation: 'deleteUserTile',
+        tileId,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  // Background images (Library > Background images)
+  private readonly BACKGROUND_IMAGES_KEY = 'fcis_background_images';
+
+  async saveBackgroundImage(entry: { id: string; name: string; dataUrl: string; createdAt: number }): Promise<void> {
+    try {
+      const existing = localStorage.getItem(this.BACKGROUND_IMAGES_KEY);
+      const map: Record<string, BackgroundImageEntry> = existing ? JSON.parse(existing) : {};
+      map[entry.id] = entry;
+      localStorage.setItem(this.BACKGROUND_IMAGES_KEY, JSON.stringify(map));
+    } catch (error) {
+      logger.error('Failed to save background image', {
+        component: 'StorageService',
+        operation: 'saveBackgroundImage',
+        id: entry.id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async listBackgroundImages(): Promise<BackgroundImageEntry[]> {
+    try {
+      const existing = localStorage.getItem(this.BACKGROUND_IMAGES_KEY);
+      if (!existing) return [];
+      const map: Record<string, BackgroundImageEntry> = JSON.parse(existing);
+      return Object.values(map).sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error) {
+      logger.error('Failed to list background images', {
+        component: 'StorageService',
+        operation: 'listBackgroundImages',
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async deleteBackgroundImage(id: string): Promise<void> {
+    try {
+      const existing = localStorage.getItem(this.BACKGROUND_IMAGES_KEY);
+      if (!existing) return;
+      const map: Record<string, BackgroundImageEntry> = JSON.parse(existing);
+      delete map[id];
+      localStorage.setItem(this.BACKGROUND_IMAGES_KEY, JSON.stringify(map));
+    } catch (error) {
+      logger.error('Failed to delete background image', {
+        component: 'StorageService',
+        operation: 'deleteBackgroundImage',
+        id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
   }
 }
 

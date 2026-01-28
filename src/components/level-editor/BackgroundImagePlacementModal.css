@@ -1,0 +1,93 @@
+.background-placement-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.background-placement-modal {
+  background: #2c3e50;
+  color: #ecf0f1;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.background-placement-modal h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+}
+
+.background-placement-hint {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.85rem;
+  color: #bdc3c7;
+}
+
+.background-placement-viewport {
+  position: relative;
+  width: 100%;
+  min-width: 320px;
+  min-height: 240px;
+  height: 50vh;
+  max-height: 480px;
+  overflow: hidden;
+  background: #1a1a2e;
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+}
+
+.background-placement-viewport:active {
+  cursor: grabbing;
+}
+
+.background-placement-crop-frame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 3px solid #3498db;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+.background-placement-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.background-placement-cancel {
+  padding: 0.5rem 1rem;
+  background: #34495e;
+  color: #ecf0f1;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.background-placement-cancel:hover {
+  background: #3d566e;
+}
+
+.background-placement-approve {
+  padding: 0.5rem 1rem;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.background-placement-approve:hover {
+  background: #229954;
+}

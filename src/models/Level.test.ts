@@ -50,9 +50,11 @@ describe('Level Model', () => {
       const level = createLevel(data);
       expect(level.title).toBe('Level 1');
       expect(level.gameId).toBe('game-123');
-      expect(level.width).toBe(1920);
-      expect(level.height).toBe(1080);
+      expect(level.width).toBe(150);
+      expect(level.height).toBe(30);
       expect(level.platforms).toEqual([]);
+      expect(level.tileGrid.length).toBe(30);
+      expect(level.tileGrid[0].length).toBe(150);
       expect(level.cameraMode).toBe('free');
       expect(level.isTemplate).toBe(false);
     });
@@ -61,12 +63,14 @@ describe('Level Model', () => {
       const data: CreateLevelData = {
         title: 'Level 1',
         gameId: 'game-123',
-        width: 2560,
-        height: 1440,
+        width: 40,
+        height: 25,
       };
       const level = createLevel(data);
-      expect(level.width).toBe(2560);
-      expect(level.height).toBe(1440);
+      expect(level.width).toBe(40);
+      expect(level.height).toBe(25);
+      expect(level.tileGrid.length).toBe(25);
+      expect(level.tileGrid[0].length).toBe(40);
     });
 
     it('should set camera mode', () => {
@@ -112,6 +116,19 @@ describe('Level Model', () => {
     it('should update camera mode', () => {
       const updated = updateLevel(baseLevel, { cameraMode: 'auto-scroll-vertical' });
       expect(updated.cameraMode).toBe('auto-scroll-vertical');
+    });
+
+    it('should update backgroundImage', () => {
+      const dataUrl = 'data:image/png;base64,cropped123';
+      const updated = updateLevel(baseLevel, { backgroundImage: dataUrl });
+      expect(updated.backgroundImage).toBe(dataUrl);
+    });
+
+    it('should clear backgroundImage when set to undefined', () => {
+      const withBg = updateLevel(baseLevel, { backgroundImage: 'data:image/png;base64,x' });
+      expect(withBg.backgroundImage).toBe('data:image/png;base64,x');
+      const cleared = updateLevel(withBg, { backgroundImage: undefined });
+      expect(cleared.backgroundImage).toBeUndefined();
     });
 
     it('should throw error for invalid width', () => {
