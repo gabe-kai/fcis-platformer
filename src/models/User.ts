@@ -15,6 +15,8 @@ export interface User {
   avatar?: string;
   provider: UserProvider;
   requiresPasswordChange?: boolean;
+  /** When true, skip the delete-level confirmation modal. */
+  skipDeleteConfirmation?: boolean;
   createdAt?: number;
   lastLogin?: number;
 }
@@ -39,6 +41,7 @@ export interface UpdateUserData {
   email?: string;
   avatar?: string;
   requiresPasswordChange?: boolean;
+  skipDeleteConfirmation?: boolean;
   lastLogin?: number;
 }
 
@@ -165,6 +168,10 @@ export function updateUser(user: User, updates: UpdateUserData): User {
 
   if (updates.requiresPasswordChange !== undefined) {
     updated.requiresPasswordChange = updates.requiresPasswordChange;
+  }
+
+  if (updates.skipDeleteConfirmation !== undefined) {
+    updated.skipDeleteConfirmation = updates.skipDeleteConfirmation;
   }
 
   if (updates.lastLogin !== undefined) {

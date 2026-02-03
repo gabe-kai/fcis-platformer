@@ -32,6 +32,28 @@ export type ScrollDirection = 'left' | 'right' | 'up' | 'down';
 export type SharingScope = 'private' | 'game' | 'user' | 'public';
 
 /**
+ * Tile pattern (multi-tile arrangement saved from selection).
+ * Cells use relative coordinates from pattern origin (bottom-left).
+ */
+export type TilePatternCell = {
+  relX: number;
+  relY: number;
+  tileId: string;
+  passable: boolean;
+  layer: 'background' | 'primary' | 'foreground';
+};
+
+export type TilePattern = {
+  id: string;
+  name: string;
+  cells: TilePatternCell[];
+  createdAt: number;
+  category?: string; // Optional category for organization (e.g., 'platforms', 'stairs', 'walls')
+  description?: string; // Optional description
+  source?: 'system' | 'user'; // Whether pattern is system-provided or user-created
+};
+
+/**
  * Export all model types
  */
 export type { User, CreateUserData, UpdateUserData, UserProvider } from '@/models/User';

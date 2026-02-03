@@ -1,0 +1,223 @@
+.moving-platform-path-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.moving-platform-path-editor-modal {
+  background: #2c3e50;
+  border: 1px solid #34495e;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.moving-platform-path-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #34495e;
+  background: #34495e;
+}
+
+.moving-platform-path-editor-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #ecf0f1;
+}
+
+.close-button {
+  background: transparent;
+  border: none;
+  color: #ecf0f1;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.moving-platform-path-editor-content {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.path-type-selector {
+  margin-bottom: 1rem;
+}
+
+.path-type-selector label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #ecf0f1;
+  font-weight: 500;
+}
+
+.path-type-selector select {
+  width: 100%;
+  padding: 0.5rem;
+  background: #34495e;
+  border: 1px solid #7f8c8d;
+  border-radius: 4px;
+  color: #ecf0f1;
+  font-size: 1rem;
+}
+
+.path-type-selector select:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.path-parameter {
+  margin-bottom: 1rem;
+}
+
+.path-parameter label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #ecf0f1;
+  font-weight: 500;
+}
+
+.path-parameter input {
+  width: 100%;
+  padding: 0.5rem;
+  background: #34495e;
+  border: 1px solid #7f8c8d;
+  border-radius: 4px;
+  color: #ecf0f1;
+  font-size: 1rem;
+}
+
+.path-parameter input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.custom-path-info {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #34495e;
+  border-radius: 4px;
+}
+
+.custom-path-info p {
+  margin: 0 0 0.5rem 0;
+  color: #bdc3c7;
+  font-size: 0.9rem;
+}
+
+.clear-path-button {
+  padding: 0.4rem 0.8rem;
+  background: #e74c3c;
+  border: none;
+  border-radius: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.clear-path-button:hover {
+  background: #c0392b;
+}
+
+.path-preview {
+  margin-bottom: 1rem;
+}
+
+.path-preview label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #ecf0f1;
+  font-weight: 500;
+}
+
+.path-preview canvas {
+  width: 100%;
+  border: 1px solid #7f8c8d;
+  border-radius: 4px;
+  background: #1a1a2e;
+}
+
+.path-info {
+  margin-bottom: 1rem;
+}
+
+.path-info p {
+  margin: 0 0 0.5rem 0;
+  color: #ecf0f1;
+  font-weight: 500;
+}
+
+.path-points-list {
+  max-height: 150px;
+  overflow-y: auto;
+  background: #34495e;
+  border-radius: 4px;
+  padding: 0.5rem;
+}
+
+.path-point {
+  padding: 0.25rem 0;
+  color: #bdc3c7;
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.moving-platform-path-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid #34495e;
+  background: #34495e;
+}
+
+.save-button,
+.cancel-button {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.save-button {
+  background: #27ae60;
+  color: #ffffff;
+}
+
+.save-button:hover {
+  background: #229954;
+}
+
+.cancel-button {
+  background: #7f8c8d;
+  color: #ffffff;
+}
+
+.cancel-button:hover {
+  background: #95a5a6;
+}

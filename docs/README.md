@@ -5,6 +5,7 @@ This directory contains documentation for the First Cat In Space Platformer Game
 ## Structure
 
 - **guides/** - Implementation guides and development documentation
+  - `level-editor-design.md` - Level editor design specification (current progress, overlap/validation/textures, phases)
   - `implementation-plan.md` - High-level implementation plan with development phases
   - `phase1-detailed-plan.md` - Detailed Phase 1 implementation with per-task branches
   - `phase1-progress.md` - Phase 1 progress tracker (current status)
@@ -13,6 +14,18 @@ This directory contains documentation for the First Cat In Space Platformer Game
   - `testing-plan.md` - Comprehensive testing strategy and CI/CD pipeline
 
 ## Documentation Overview
+
+### Level Editor Design
+The [level editor design](guides/level-editor-design.md) specifies:
+- Current progress (implemented vs partial/deferred)
+- Tool palette, view mode (Grid/Texture), layers, tile placement, overlap detection, level validation
+- **Moving platforms**: Create from tiles or pattern, convert existing platform, path editor, draggable path points, animated preview, orphan cleanup
+- Deletion confirmation (in-editor group delete; level browser delete preference)
+- System tile visuals driven by **fill patterns** (stripes, grids, bricks, hexes, symbol-based icons) with optional textures layered on top in texture mode
+- Spawn/win validation warnings in Properties Panel
+- Implementation phases and testing checklist
+
+**Use this for:** Level editor behavior, UX details, and what's implemented.
 
 ### Implementation Plan
 The [implementation plan](guides/implementation-plan.md) outlines:
@@ -50,10 +63,10 @@ The [Phase 1 progress tracker](guides/phase1-progress.md) shows:
 - ✅ Bugfix: Login Redirect & Password Improvements - **COMPLETE** (Branch: `bugfix/login-redirect-and-password-fixes`)
 - ✅ Feature: User Details Modal & Admin Management - **COMPLETE** (Branch: `bugfix/login-redirect-and-password-fixes`)
 - ✅ Preparation: Store Updates & Level Storage - **COMPLETE** (Branch: `feature/prepare-level-editor`)
-- 🔲 Task 4 (Basic Level Editor) - Ready to Start
+- ✅ Task 4 (Basic Level Editor) - **COMPLETE** (Branch: `feature/phase1-level-editor`)
 - 🔲 Task 5 (Local Storage) - Not Started
 
-**Overall Progress:** Core authentication and user management features complete. Stores updated with real models and level storage implemented for Task 4.
+**Overall Progress:** Core authentication and user management features complete. Basic level editor with platform placement, grid system, save/load, autosave with last-saved indicator, grid/texture view mode, in-editor deletion confirmation (group delete modal), overlap detection and replace confirmation, level validation (spawn/win warnings in Properties Panel), and system tile textures (programmatically generated in texture mode) implemented.
 
 ### Logging Guide
 The [logging guide](guides/logging-guide.md) defines:

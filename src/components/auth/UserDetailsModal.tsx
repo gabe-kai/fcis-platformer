@@ -127,6 +127,26 @@ export function UserDetailsModal({ isOpen, onClose }: UserDetailsModalProps) {
     setError(null);
   };
 
+  const handlePreferenceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    if (!user) return;
+    try {
+      await authService.updateProfile({ skipDeleteConfirmation: checked });
+      updateProfile({ skipDeleteConfirmation: checked });
+      logger.info('Preference updated', {
+        component: 'UserDetailsModal',
+        operation: 'handlePreferenceChange',
+        skipDeleteConfirmation: checked,
+      });
+    } catch (err) {
+      logger.error('Failed to update preference', {
+        component: 'UserDetailsModal',
+        operation: 'handlePreferenceChange',
+      }, { error: err instanceof Error ? err.message : 'Unknown error' });
+      setError('Failed to save preference. Please try again.');
+    }
+  };
+
   const handleResetUserPassword = async (targetUserId: string) => {
     if (!isAdmin) return;
 
@@ -241,6 +261,18 @@ export function UserDetailsModal({ isOpen, onClose }: UserDetailsModalProps) {
                       </button>
                     )}
                   </div>
+
+                  <div className="preferences-section">
+                    <h3>Preferences</h3>
+                    <label className="preference-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={user.skipDeleteConfirmation ?? false}
+                        onChange={handlePreferenceChange}
+                      />
+                      <span>Don&apos;t confirm when deleting levels</span>
+                    </label>
+                  </div>
                 </div>
               ) : (
                 <div className="profile-edit">
@@ -295,6 +327,18 @@ export function UserDetailsModal({ isOpen, onClose }: UserDetailsModalProps) {
                     >
                       {isLoading ? 'Saving...' : 'Save Changes'}
                     </button>
+                  </div>
+
+                  <div className="preferences-section">
+                    <h3>Preferences</h3>
+                    <label className="preference-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={user.skipDeleteConfirmation ?? false}
+                        onChange={handlePreferenceChange}
+                      />
+                      <span>Don&apos;t confirm when deleting levels</span>
+                    </label>
                   </div>
                 </div>
               )}

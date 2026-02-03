@@ -534,7 +534,12 @@ class AuthService {
   /**
    * Update user profile
    */
-  async updateProfile(updates: { username?: string; email?: string; avatar?: string }): Promise<void> {
+  async updateProfile(updates: {
+    username?: string;
+    email?: string;
+    avatar?: string;
+    skipDeleteConfirmation?: boolean;
+  }): Promise<void> {
     if (!this.currentUser) {
       throw new Error('No user logged in');
     }
@@ -572,6 +577,9 @@ class AuthService {
       }
       if (updates.avatar !== undefined) {
         updatedUser.avatar = updates.avatar;
+      }
+      if (updates.skipDeleteConfirmation !== undefined) {
+        updatedUser.skipDeleteConfirmation = updates.skipDeleteConfirmation;
       }
 
       this.currentUser = updatedUser;

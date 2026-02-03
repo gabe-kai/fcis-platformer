@@ -247,7 +247,7 @@ npm run test:coverage
 - ✅ Bugfix: Login Redirect & Password Improvements
 - ✅ Feature: User Details Modal & Admin Management
 - ✅ Preparation: Store Updates & Level Storage (for Task 4)
-- 🔲 Task 4: Basic Level Editor
+- ✅ Task 4: Basic Level Editor
 - 🔲 Task 5: Local Storage
 
 See the [Phase 1 Detailed Plan](docs/guides/phase1-detailed-plan.md) for current progress and next steps.

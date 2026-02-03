@@ -171,7 +171,8 @@ test('user can create and play a level', async ({ page }) => {
 ### Critical Paths (Must have 95%+ coverage)
 - Authentication flow
 - Game save/load
-- Level editor operations
+- Level editor operations (tiles, patterns, undo/redo)
+- Level editor – moving platforms (create, convert, path editor, orphan cleanup, delete with tile removal)
 - Export functionality
 - Scan/reimport pipeline
 - Sharing operations

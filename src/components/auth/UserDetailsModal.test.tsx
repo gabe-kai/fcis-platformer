@@ -32,12 +32,11 @@ vi.mock('@/services/authService', () => ({
 
 // Mock ChangePasswordModal
 vi.mock('./ChangePasswordModal', () => ({
-  ChangePasswordModal: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
-    isOpen ? (
-      <div data-testid="change-password-modal">
-        <button onClick={onClose}>Close Password Modal</button>
-      </div>
-    ) : null,
+  ChangePasswordModal: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="change-password-modal">
+      <button onClick={onClose}>Close Password Modal</button>
+    </div>
+  ),
 }));
 
 describe('UserDetailsModal', () => {
@@ -56,7 +55,14 @@ describe('UserDetailsModal', () => {
   }));
 
   beforeEach(() => {
+    // `clearAllMocks` does not reset mocked return values; tests in this file
+    // override `mockUseAuthStore` in places (e.g. user=null), so we must reset.
     vi.clearAllMocks();
+    mockUseAuthStore.mockReset();
+    mockUseAuthStore.mockReturnValue({
+      user: mockUser as User | null,
+      updateProfile: mockUpdateProfile,
+    });
     (useAuthStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockUseAuthStore);
     document.body.innerHTML = '';
   });

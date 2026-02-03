@@ -77,12 +77,19 @@ This document outlines the high-level implementation plan for the FCIS Platforme
    - **Branch:** `feature/prepare-level-editor`
    - Prepares foundation for Task 4 with type-safe stores and working save/load
 
-4. 🔲 **Basic level editor** - Ready to Start
-   - Canvas-based editor view
-   - Grid system (toggleable)
-   - Platform placement tool
-   - Basic platform shapes (rectangles)
-   - Save/load level functionality
+4. ✅ **Basic level editor** - COMPLETE
+   - ✅ Canvas-based editor view
+   - ✅ Grid system (toggleable)
+   - ✅ Platform placement tool
+   - ✅ Basic platform shapes (rectangles)
+   - ✅ Save/load level functionality
+   - ✅ Autosave (debounced 2s) and last-saved timestamp in header
+   - ✅ View mode toggle (Grid | Texture): solid blocks for print/color, full tiles for in-game preview
+   - ✅ In-editor deletion confirmation (ConfirmDeleteTileGroupModal): Shift+click Delete on multi-tile group requires confirm; single-tile delete has no confirmation
+   - ✅ Overlap detection and confirmation (ConfirmPlaceOverwriteModal): placing over same-layer tiles shows red highlight and "Replace existing tiles?" modal; placement without overlap is immediate
+   - ✅ Level validation (spawn/win): non-blocking warnings in Properties Panel when spawn or win is missing; warnings update as tiles change; save allowed with warnings
+   - ✅ System tile textures: programmatically generated textures for system tiles in texture mode (via `tileTextureGenerator`); grid mode unchanged
+   - **Branch:** `feature/phase1-level-editor`
 
 5. 🔲 **Local storage** - Not Started
    - Implement IndexedDB or localStorage wrapper
@@ -94,11 +101,11 @@ This document outlines the high-level implementation plan for the FCIS Platforme
 - ✅ Unified logging system
 - ✅ Testing infrastructure
 - ✅ Working authentication system
-- 🔲 Basic level editor with platform placement
-- 🔲 Local game storage (minimal level storage implemented)
+- ✅ Basic level editor with platform placement
+- 🔲 Local game storage (minimal level storage implemented, full IndexedDB in Task 5)
 
 **Estimated Duration:** 4-6 weeks  
-**Progress:** 3 of 5 tasks complete (60%) + preparation work
+**Progress:** 4 of 5 tasks complete (80%) + preparation work
 
 ---
 
@@ -244,8 +251,8 @@ This document outlines the high-level implementation plan for the FCIS Platforme
 2. Advanced interactions
    - Complex door systems
    - Multi-step puzzles
-   - Moving platforms
-   - Destructible platforms
+- Moving platforms (complete: path editor, draggable path points, animation, create/convert, orphan cleanup)
+- Destructible platforms
 
 3. Export system
    - Grid cell selection UI

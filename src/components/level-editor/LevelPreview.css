@@ -1,0 +1,41 @@
+.level-preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.level-preview-canvas {
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  background-color: #1a1a2e;
+  display: block;
+  margin: 0 auto;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.preview-item label {
+  color: #bdc3c7;
+  font-weight: 500;
+}
+
+.preview-item span {
+  color: #ecf0f1;
+}
+
+.preview-description {
+  max-width: 150px;
+  text-align: right;
+  word-wrap: break-word;
+}
