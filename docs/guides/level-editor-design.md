@@ -1,45 +1,31 @@
-# Level Editor Design Specification
+# Level Editor Design & Implementation Guide
 
-## Current Progress & Diversions
-
-**Last updated:** Jan 2026 (background image placement modal, Library sections, original-save-to-Library)
-
-### Implemented
-- **Core editor**: Tool palette (Select, Place, Delete), grid display, zoom (wheel + slider), panning (middle-click drag).
-- **View mode (Grid/Texture)**: Header toggle to switch canvas display. **Grid mode** uses solid-color blocks only (no textures, no background image)—intended for printing, coloring, and re-upload workflows. **Texture mode** shows fully rendered tiles and background as in game. Stored in editor store as `viewMode: 'grid' | 'texture'`.
-- **Coordinate system**: Bottom-left origin, cell-based dimensions, world/canvas conversion.
-- **Layer system**: Background image layer + three tile layers (background, primary, foreground). Layer selector in Tool Palette.
-- **Level model**: `Level` with `tileGrid`, `gridSize`, `width`/`height`, `backgroundImage`, camera metadata. `backgroundImage` is a single `string` (URL/data URL of the **cropped** image), not `{ url, parallaxSpeed }`.
-- **Background image**: Upload in Level Details panel opens a **placement modal**. User sees the full image with a crop rectangle matching the level map aspect (no warp/squish; rectangle must fully cover the level). Pan and zoom to position, then approve; the cropped region is saved as `level.backgroundImage` and displayed in editor/game (cover, bottom-left anchor). The **original** full upload is saved to Library → Background Images for reuse.
-- **Library** (formerly Tile Library): Left panel below Tool Palette. Three sections: **Tile Textures** (My Tiles + system categories Core, Platforms, Interactive, Hazards); **Tile Group Textures** (placeholder, coming soon); **Background Images** (saved originals from uploads; "Use" opens placement modal to apply again). Selecting a tile sets Place tool and layer.
-- **User tile upload**: TileUploadModal for uploading custom tiles. Validates: square aspect ratio, 16–256px. Supports PNG, JPG, GIF, WebP. Tiles stored in localStorage (`fcis_user_tiles`), registered in a tile registry for fast lookup. User tiles render with their textures on the canvas.
-- **Properties Panel**: Level Preview (minimap + viewport indicator), Level Details (name, dimensions, grid, zoom, background image upload), Selected Object details. Preview supports click-to-jump and drag-to-pan. Background image upload opens placement modal (crop rectangle, pan/zoom, approve).
-- **Save/Load**: Manual save via header "Save Level" button; levels stored in `localStorage` (`fcis_levels`). **Autosave**: debounced 2s after level changes (first run after load skipped). **Last-saved**: timestamp shown in header next to Save button (e.g. "Last saved: 2:34 PM" or "Last saved: —"); updates on both manual save and autosave. No binary format; JSON in localStorage.
-- **Level Browser**: "Design Levels" on dashboard opens Level Browser (not editor directly). Sections: Create New Level, My Levels, Shared with Me. Create/edit/delete levels. Delete uses a local confirmation modal with "Don't warn me again"; preference stored in user profile.
-- **User preference**: "Don't confirm when deleting levels" toggle in User Details (Preferences). Persisted with user profile.
-
-### Partial / Deferred
-- **Tile textures**: User tile upload implemented (16–256px square, PNG/JPG/GIF/WebP). System tiles still use color-coded placeholder icons.
-- **Multi-tile patterns & function sets**: No Patterns or Function Sets UI, creation, or placement. Tile Library is tiles-only.
-- **Overlap detection / confirmation**: No in-canvas overlap detection or confirmation when placing over existing tiles. Design's "red highlight + confirm" not implemented.
-- **Deletion confirmation (in-editor)**: Design's "group deletion: confirmation; single tile: no confirmation" applies to **tile** deletion in the canvas. We have **level** deletion confirmation in the Level Browser only. In-editor tile/group deletion has no confirmation.
-- **Undo/Redo**: Not implemented.
-- **Level validation**: No spawn/win checks or validation UI.
-- **Search/filter, favorites, recent**: Not in Tile Library.
-
-### Major Diversions
-1. **Scrollbars**: Design specifies "Native browser scrollbars when map exceeds viewport." We use **no scrollbars**. Navigation is middle-click drag + Level Preview (click-to-jump, drag-to-pan). A hidden scroll container is used programmatically for viewport positioning.
-2. **Scrollbar as source of truth**: Technical Notes say "Scrollbars control viewport position; offset derived from scroll position." We use a **hidden scroll container**; scrollbars are off. Viewport position is derived from that container's `scrollLeft`/`scrollTop`.
-3. **Level Browser**: Not in original design. "Design Levels" opens a browser (create, my levels, shared) instead of creating a level and opening the editor directly.
-4. **Level deletion UX**: Level delete uses a **local modal** (not `confirm`) with "Don't warn me again," persisted as a user preference in User Details. Applies to level deletion in Level Browser only.
+**Last Updated:** January 31, 2026  
+**Status:** Active Development - Phase 5 (Advanced Features - Moving Platforms Complete)
 
 ---
 
-## Overview
+## Table of Contents
+
+1. [Overview & Design Principles](#overview--design-principles)
+2. [Architecture & Data Model](#architecture--data-model)
+3. [Feature Catalog](#feature-catalog)
+4. [User Guide](#user-guide)
+5. [Implementation Details](#implementation-details)
+6. [Testing Status](#testing-status)
+7. [Next Steps](#next-steps)
+8. [Lessons Learned](#lessons-learned)
+9. [Future Roadmap](#future-roadmap)
+
+---
+
+## Overview & Design Principles
+
+### Purpose
 
 The Level Editor is a visual tool for creating platformer game levels. It uses a tile-based system where users can place, select, and edit tiles on a grid. The editor is designed with kids in mind - they'll print maps, color them with physical media, and re-upload them.
 
-## Core Principles
+### Core Design Principles
 
 1. **Uniform Tile Size**: All tiles are square and the same size (gridSize). Multi-size tiles are groups of standard tiles
 2. **User-Facing Coordinates**: Tiles are numbered from bottom-left, right and up (like math graphs) for easy mapping to physical paper
@@ -49,257 +35,38 @@ The Level Editor is a visual tool for creating platformer game levels. It uses a
 6. **Individual Tile Storage**: Each tile is stored separately in the grid, even when part of a visual group
 7. **Grouping by Contiguity**: Contiguous/touching tiles form groups for selection, but each tile maintains independent texture and functionality
 
+### Key User Workflows
+
+- **Create**: Place tiles, organize into groups, save patterns
+- **Edit**: Select, modify properties, rename, change layers
+- **Organize**: Use layers, name groups, apply fill patterns
+- **Reuse**: Save patterns to library, copy/paste groups
+- **Print**: Export grid mode for coloring, re-import colored images
+
 ---
 
-## Coordinate System
+## Architecture & Data Model
 
-### World Coordinates (Internal)
+### Coordinate System
+
+#### World Coordinates (Internal)
 - **Origin**: Bottom-left corner (0, 0)
 - **X-axis**: Increases rightward
 - **Y-axis**: Increases upward
 - **Units**: Grid cells (not pixels). Map dimensions are in cell counts.
 
-### User-Facing Coordinates
+#### User-Facing Coordinates
 - **Display**: Cell coordinates shown as (X, Y) starting from bottom-left
 - **Example**: Bottom-left tile = (0, 0), tile to its right = (1, 0), tile above it = (0, 1)
 - **Purpose**: Matches physical paper mapping where kids draw from bottom-left
 
-### Canvas Coordinates (Rendering)
+#### Canvas Coordinates (Rendering)
 - **Origin**: Top-left corner (standard HTML canvas)
-- **Conversion**: `canvasY = canvasHeight - worldY * zoom + offset.y`
-- **Offset**: `offset.y` = world Y (scaled) visible at canvas bottom
+- **Conversion**: Uses `cellToCanvas()` and `canvasToCell()` utilities
+- **Implementation**: See `src/utils/cellCoordinates.ts`
 
----
+### Level Data Structure
 
-## Map Structure
-
-### Map Dimensions
-- **Default**: 150 tiles wide × 30 tiles tall
-- **Units**: Grid cells (not pixels)
-- **Flexible**: User can resize in tile units
-- **Limits**: Minimum 1 cell, maximum 10000 cells (per dimension)
-- **Grid Size**: User-configurable per level
-  - **Default**: 64px
-  - **Limits**: Minimum 16px, maximum 256px
-  - All tiles are square and match gridSize
-
-### Tile Grid
-- **Structure**: `tileGrid: TileCell[][]` - 2D array of cells
-- **Storage**: Each cell stores one tile independently, even if visually grouped
-- **Cell Definition**:
-  ```typescript
-  interface TileCell {
-    passable: boolean;
-    tileId?: string;        // Reference to tile definition
-    layer: 'background' | 'primary' | 'foreground';
-    properties?: TileProperties;
-  }
-  ```
-- **Grouping**: Contiguous/touching tiles form groups for selection, but each cell maintains independent data
-
-### Tile Definitions
-- **Texture-Based**: Each tile uses uploaded texture/image
-- **Size**: All tiles are square and match gridSize (e.g., 64×64px, 128×128px)
-- **Aspect Ratio**: Only square textures allowed (1:1 aspect ratio)
-- **Multi-Tile Groups**: Large visual elements are groups of standard-sized tiles
-- **Reusable**: Tile definitions stored separately, referenced by ID
-- **Texture Size**: 16×16px to 256×256px (square only)
-
----
-
-## Layer System
-
-### Layer 1: Background Image
-- **Purpose**: Full-map background (e.g., colored-in photo upload)
-- **Type**: Single image covering entire map (cropped to level aspect; no warp/squish)
-- **Implementation**:
-  - **Upload**: Level Details → Background Image file picker, or Library → Background Images → "Use".
-  - **Placement modal**: After upload or "Use", a modal shows the image with a fixed-aspect crop rectangle (level map proportion). User can pan and zoom; rectangle must fully cover the level (no gaps). Approve crops that region; it becomes `level.backgroundImage`.
-  - **Display**: Cropped image anchors bottom-left, scales to **cover** viewport (aspect preserved). Rendered behind grid and tiles (texture mode only).
-  - **Library**: The **original** full image is saved to Library → Background Images (localStorage `fcis_background_images`) for reuse without re-uploading.
-- **Properties** (future):
-  - Static or parallax
-  - Scroll speed multiplier (for parallax)
-  - Z-index: -3
-
-### Layer 2: Background Tiles
-- **Purpose**: Decorative tiles behind player
-- **Type**: Grid-based tiles
-- **Properties**:
-  - No physics/collision
-  - Parallax support (future)
-  - Z-index: -2
-
-### Layer 3: Primary Tiles (Physics Layer)
-- **Purpose**: Main gameplay tiles with collision
-- **Type**: Grid-based tiles
-- **Properties**:
-  - Physics/collision enabled
-  - Tile type determines behavior
-  - Z-index: -1
-
-### Layer 4: Foreground Tiles
-- **Purpose**: Decorative tiles in front of player
-- **Type**: Grid-based tiles
-- **Properties**:
-  - No physics/collision
-  - Parallax support (future)
-  - Z-index: 0
-
-### Future: Parallax Motion
-- **Planned**: Different scroll speeds per layer
-- **Not Implemented**: Save for playtime phase
-- **Design**: Each layer has scroll speed multiplier (0.0 to 2.0)
-
----
-
-## Tile Types & Color Coding
-
-### Standard Tile Types
-
-| Type | Color | Description | Physics | Layer |
-|------|-------|-------------|---------|-------|
-| **Solid Platform** | Blue (#3498db) | Standard walkable surface | Collision | Primary |
-| **Spawn Point** | Green (#27ae60) | Player starting position | None | Primary |
-| **Level Win** | Gold (#f39c12) | Level completion trigger | None | Primary |
-| **Teleporter/Portal** | Purple (#9b59b6) | Warps player to target | None | Primary |
-| **Death Tile** | Red (#e74c3c) | Kills player on contact | Collision | Primary |
-| **Hazard Zone** | Dark Red (#c0392b) | Fall-to-die area (spikes, lava, etc.) | Collision | Primary |
-| **One-Way Platform** | Cyan (#1abc9c) | Jump up through, can't fall through | One-way | Primary |
-| **Breakable Block** | Orange (#e67e22) | Can be destroyed (Mario-style) | Collision | Primary |
-| **Moving Platform** | Yellow (#f1c40f) | Moves along path | Collision | Primary |
-| **Spring/Jump Pad** | Pink (#ec4899) | Boosts player upward/jump | Trigger | Primary |
-| **Key** | Bronze (#cd7f32) | Collectible key item | None | Primary |
-| **Locked Door** | Brown (#8b4513) | Requires key to open | Collision (when locked) | Primary |
-| **Enemy Spawner** | Magenta (#e91e63) | Spawns enemies | None | Primary |
-| **Collectible** | Light Blue (#3498db, lighter) | Coins/power-ups | None | Primary |
-| **Background Decoration** | Gray (#95a5a6) | Visual only | None | Background |
-| **Foreground Decoration** | Dark Gray (#7f8c8d) | Visual only | None | Foreground |
-
-### Tile Type Properties
-
-```typescript
-interface TileProperties {
-  // Basic
-  type: TileType;
-  passable: boolean;
-  layer: 'background' | 'primary' | 'foreground';
-  
-  // Teleporter
-  targetLevelId?: string;
-  targetX?: number;
-  targetY?: number;
-  
-  // Moving Platform
-  pathType?: 'horizontal' | 'vertical' | 'circular' | 'custom';
-  pathSpeed?: number;
-  pathPoints?: Array<{ x: number; y: number }>;
-  
-  // Breakable
-  breakable?: boolean;
-  breakSound?: string;
-  
-  // One-Way
-  oneWayDirection?: 'up' | 'down' | 'left' | 'right';
-  
-  // Enemy Spawner
-  enemyType?: string;
-  spawnInterval?: number;
-  maxEnemies?: number;
-  
-  // Collectible
-  collectibleType?: 'coin' | 'powerup' | 'custom';
-  value?: number;
-  
-  // Spring/Jump Pad
-  springForce?: number;  // Upward boost strength
-  springDirection?: 'up' | 'down' | 'left' | 'right' | 'diagonal';
-  springAngle?: number;  // For diagonal springs
-  
-  // Key
-  keyId?: string;  // Unique key identifier
-  keyColor?: string;  // Visual distinction
-  
-  // Locked Door
-  requiredKeyId?: string;  // Key ID needed to unlock
-  locked?: boolean;  // Current lock state
-  targetLevelId?: string;  // Optional: level to transition to when unlocked
-  
-  // Hazard Zone
-  hazardType?: 'spikes' | 'lava' | 'poison' | 'void' | 'custom';
-  damage?: number;  // Damage per contact/frame
-}
-```
-
----
-
-## Viewport & Navigation
-
-### Viewport
-- **Fixed Size**: Matches container dimensions
-- **Canvas**: HTML5 canvas element for rendering
-- **Background**: Dark blue (#1a1a2e)
-
-### Zoom
-- **Min Zoom**: Longest map dimension fits viewport
-  - `minZoom = max(canvasWidth / mapWidth, canvasHeight / mapHeight)`
-- **Max Zoom**: At least 8×8 tiles visible
-  - `maxZoom = min(canvasWidth / (gridSize * 8), canvasHeight / (gridSize * 8))`
-- **Controls**:
-  - Mouse wheel (anchors to cursor position)
-  - Zoom slider in Properties Panel
-- **Smooth Scaling**: Grid and tiles scale proportionally
-
-### Panning
-- **Middle-Click Drag**: Pan the viewport
-- **Scrollbars**: ~~Native browser scrollbars when map exceeds viewport~~ **Diversion:** Scrollbars removed. Navigation is middle-click drag + Level Preview (click-to-jump, drag-to-pan). A hidden scroll container provides programmatic viewport positioning; scrollbars are hidden.
-- **Scroll Content**: Exactly `mapWidthScaled × mapHeightScaled` pixels
-
-### Grid Display
-- **Visibility**: Toggle on/off
-- **Alignment**: Grid lines align with tile boundaries
-- **Bounds**: Only drawn within map bounds (0 to mapWidth, 0 to mapHeight)
-- **Scaling**: Grid cell size = `gridSize * zoom`
-- **Hover Info**: Shows cell coordinates (X, Y) in Properties Panel
-
----
-
-## User Interactions
-
-### Tool Palette
-1. **Select Tool**: Click tiles to view/edit properties
-2. **Place Tool**: Click/drag to place tiles
-3. **Delete Tool**: Click to remove tiles (removes connected group)
-
-### Tile Placement
-- **Click**: Place single tile
-- **Drag**: Place multiple tiles in rectangle
-- **Hover Highlight**: Shows where tiles will be placed
-- **Layer Selection**: Choose which layer to place on (visual indicator shows active layer)
-- **Overlap Detection**: 
-  - If placement would overwrite existing tiles, entire old group highlighted in red
-  - User confirmation required to delete old group and replace with new tile
-  - If placement extends beyond map boundaries, parts beyond edge are cut off
-- **No Overlap Rule**: Tiles cannot overlap on the same layer
-- **Functionality Independence**: Functionality tiles can use any texture
-- **Pattern/Set Placement**: Patterns and function sets placed with bottom-left corner as origin
-
-### Tile Selection
-- **Single Click**: Select individual tile
-- **Group Selection**: Contiguous/touching tiles auto-group (all tiles that touch each other)
-- **Multi-Group Selection**: Can select multiple groups simultaneously (Ctrl/Cmd + click)
-- **Properties Panel**: Shows tile details, coordinates, type, properties
-- **Individual Control**: Each tile in a group can have different texture and functionality
-
-### Context Actions
-- **Right-Click**: Switch to select tool, unselect tiles
-- **Middle-Click Drag**: Pan viewport
-
----
-
-## Data Model
-
-### Level Structure
 ```typescript
 interface Level {
   id: string;
@@ -314,15 +81,11 @@ interface Level {
   // Tile Grid (2D array)
   tileGrid: TileCell[][];
   
-  // Background Image (design)
-  backgroundImage?: {
-    url: string;
-    parallaxSpeed?: number;  // Future
-  };
-  // Implementation uses `backgroundImage?: string` (URL/data URL); parallax not used.
+  // Background Image (cropped data URL)
+  backgroundImage?: string;  // URL/data URL of cropped image
   
   // Grid Configuration
-  gridSize: number;  // Grid cell size in pixels (user-configurable per level, e.g., 64, 128). All tiles are square and match this size.
+  gridSize: number;  // Grid cell size in pixels (user-configurable per level, e.g., 64, 128)
   
   // Camera
   cameraMode: 'free' | 'auto-scroll-horizontal' | 'auto-scroll-vertical';
@@ -330,6 +93,10 @@ interface Level {
   
   // Player
   playerSpawn?: { x: number; y: number };
+  
+  // Display Names (for tiles and groups)
+  tileDisplayNames?: Record<string, string>;  // Key: "cellX,cellY"
+  groupDisplayNames?: Record<string, string>;  // Key: groupId
   
   // Metadata
   createdAt: number;
@@ -340,647 +107,841 @@ interface Level {
 }
 ```
 
-### Tile Cell
+### Tile Cell Structure
+
 ```typescript
 interface TileCell {
   passable: boolean;
-  tileId?: string;
+  tileId?: string;        // Reference to tile definition
   layer: 'background' | 'primary' | 'foreground';
+  groupId?: string;       // For grouping contiguous tiles
+  displayName?: string;   // Custom name for this cell
+  fillPatternId?: string; // Fill pattern ID (e.g., 'fill-bricks', 'fill-symbol-spawn')
   properties?: TileProperties;
 }
 ```
 
 ### Tile Definition
+
 ```typescript
 interface TileDefinition {
   id: string;
   name: string;
   type: TileType;
-  texture: {
+  texture?: {
     url: string;
-    width: number;   // Texture width (must equal height, square only)
-    height: number;  // Texture height (must equal width, square only)
+    width: number;   // Must equal height (square only)
+    height: number;  // Must equal width (square only)
   };
-  // Note: All tiles are 1×1 grid cells. Multi-tile visuals are groups of standard tiles.
+  defaultFillPatternId?: string;  // Default pattern for this tile type
   properties: TileProperties;
-  reusable: boolean;  // Can be used multiple times
-  source: 'system' | 'user';  // System-provided or user-created
-  userId?: string;  // Creator ID (for user tiles)
+  reusable: boolean;
+  source: 'system' | 'user';
+  userId?: string;
+  description?: string;
 }
 ```
 
-### Multi-Tile Pattern
+### Tile Pattern (Multi-Tile Groups)
+
 ```typescript
 interface TilePattern {
   id: string;
   name: string;
   description?: string;
-  tiles: Array<{
-    cellX: number;  // Relative X position in pattern (from pattern origin)
-    cellY: number;  // Relative Y position in pattern (from pattern origin)
-    tileId: string;  // Reference to TileDefinition
+  cells: Array<{
+    relX: number;  // Relative X position from pattern origin
+    relY: number;  // Relative Y position from pattern origin
+    tileId: string;
+    passable: boolean;
     layer: 'background' | 'primary' | 'foreground';
-    properties?: TileProperties;  // Individual tile properties within pattern
   }>;
   source: 'system' | 'user';
   userId?: string;
-  previewImage?: string;  // Optional preview thumbnail
+  createdAt: number;
 }
 ```
 
-### Function Set
-```typescript
-interface FunctionSet {
-  id: string;
-  name: string;
-  description?: string;
-  tiles: Array<{
-    cellX: number;
-    cellY: number;
-    tileId: string;
-    layer: 'background' | 'primary' | 'foreground';
-    properties?: TileProperties;  // Pre-configured properties
-  }>;
-  startTile?: { cellX: number; cellY: number };  // Distinct start tile (e.g., teleporter entrance)
-  endTile?: { cellX: number; cellY: number };   // Distinct end tile (e.g., teleporter exit)
-  connections?: Array<{
-    fromTile: { cellX: number; cellY: number };
-    toTile: { cellX: number; cellY: number };
-    connectionType: 'trigger' | 'dependency' | 'sequence';
-  }>;
-  // Note: End tile moves with its group, but if separated, that becomes the new teleport destination
-  source: 'system' | 'user';
-  userId?: string;
-  previewImage?: string;
-  example: string;  // e.g., "Springboard + Landing Platform"
-}
-```
+### Layer System
+
+1. **Background Image Layer** (Z-index: -3)
+   - Full-map background image
+   - Cropped to level aspect ratio
+   - Scales with zoom, anchors bottom-left
+   - Texture mode only
+
+2. **Background Tile Layer** (Z-index: -2)
+   - Decorative tiles behind player
+   - No physics/collision
+   - Future: Parallax support
+
+3. **Primary Tile Layer** (Z-index: -1)
+   - Main gameplay tiles with collision
+   - Physics enabled
+   - Tile type determines behavior
+
+4. **Foreground Tile Layer** (Z-index: 0)
+   - Decorative tiles in front of player
+   - No physics/collision
+   - Future: Parallax support
 
 ---
 
-## Rendering Pipeline
+## Feature Catalog
 
-### View Mode (Grid vs Texture)
-- **Grid mode**: Tiles drawn as solid-color blocks (`TILE_TYPE_COLORS`); background image hidden. For printing, coloring, and re-upload workflows.
-- **Texture mode**: Tiles use textures when available; background image shown. Matches in-game look.
+### ✅ Fully Implemented Features
 
-### Render Order (Back to Front)
-1. Background image (if present; texture mode only)
+#### Core Editor
+- ✅ Tool palette (Select, Place, Delete)
+- ✅ Grid display with toggle
+- ✅ Zoom (mouse wheel + slider) with cursor anchoring
+- ✅ Panning (middle-click drag)
+- ✅ View mode toggle (Grid/Texture)
+- ✅ Layer selector (Background/Primary/Foreground)
+- ✅ Coordinate system (bottom-left origin)
+
+#### Tile Management
+- ✅ Single tile placement (click)
+- ✅ Multi-tile placement (drag rectangle)
+- ✅ Tile selection (single click)
+- ✅ Group selection (contiguous tiles auto-group)
+- ✅ Multi-group selection (Ctrl/Cmd + click)
+- ✅ Tile deletion (single tile, no confirmation)
+- ✅ Group deletion (Shift+click, confirmation modal)
+- ✅ Overlap detection (red highlight + confirmation modal)
+- ✅ Boundary cutoff (placement beyond edges)
+
+#### Visual System
+- ✅ Fill patterns (stripes, dots, grids, bricks, hexes, symbols)
+- ✅ Pattern application (click, drag, Shift+click flood-fill)
+- ✅ Texture rendering (user-uploaded tiles)
+- ✅ System tile visuals (fill patterns + optional textures)
+- ✅ Texture mode tinting (semi-transparent type-colored overlay)
+- ✅ Selection highlighting (prominent borders, colored tints)
+- ✅ Hover previews (pattern placement, clipboard ghost)
+
+#### Background Images
+- ✅ Upload via Level Details panel
+- ✅ Placement modal (crop rectangle, pan/zoom)
+- ✅ Library storage (original images saved)
+- ✅ Reuse from library ("Use" button)
+- ✅ Zoom-aware scaling (world-space, anchors bottom-left)
+
+#### Library System
+- ✅ Tile Textures section (My Tiles + system categories)
+- ✅ Patterns section (saved tile groups)
+- ✅ Background Images section
+- ✅ Search functionality (name, description, id)
+- ✅ Right-click edit (user tiles and patterns)
+- ✅ Delete user items
+
+#### Clipboard Operations
+- ✅ Copy (Ctrl/Cmd + C) - works on selected groups or single tiles
+- ✅ Cut (Ctrl/Cmd + X) - works on selected groups or single tiles
+- ✅ Paste (Ctrl/Cmd + V) - at hovered cell
+- ✅ Clipboard ghost preview (yellow/gold semi-transparent)
+- ✅ Relative coordinate preservation
+
+#### Context Menu (Right-Click)
+- ✅ Position-aware (flips above/below, left/right to stay in bounds)
+- ✅ Copy/Cut (individual tiles or groups)
+- ✅ Paste (when clipboard has items)
+- ✅ Delete (selected groups)
+- ✅ Name Tile (prompt for custom name)
+- ✅ Name Tile Group (prompt for group name)
+- ✅ Change Layer (cycle through layers)
+- ✅ Select Texture From Library (pending assignment)
+- ✅ Upload Texture for Tile (opens upload modal)
+
+#### Properties Panel
+- ✅ Level Preview (minimap with viewport indicator)
+- ✅ Click-to-jump navigation
+- ✅ Drag-to-pan navigation
+- ✅ Level Details (name, dimensions, grid toggle, zoom slider)
+- ✅ Background image upload
+- ✅ Selected Object Details (tile/group properties)
+- ✅ Save to Library button (for patterns)
+- ✅ Delete group button
+
+#### Save/Load System
+- ✅ Manual save (header button)
+- ✅ Autosave (debounced 2s after changes)
+- ✅ Last-saved timestamp (header indicator)
+- ✅ localStorage storage (`fcis_levels`)
+- ✅ JSON format (human-readable)
+
+#### Undo/Redo System
+- ✅ Undo (Ctrl/Cmd + Z)
+- ✅ Redo (Ctrl/Cmd + Y or Ctrl/Cmd + Shift + Z)
+- ✅ Level snapshot before each mutation
+- ✅ Step limit (maxUndoSteps: 16)
+- ✅ Memory-based (RAM storage)
+
+#### Level Browser
+- ✅ Create New Level
+- ✅ My Levels (grid view)
+- ✅ Edit/Delete levels
+- ✅ Delete confirmation modal ("Don't warn me again")
+- ✅ User preference persistence
+
+#### Level Validation
+- ✅ Spawn point check (warning if missing)
+- ✅ Win condition check (warning if missing)
+- ✅ Non-blocking warnings (can save anyway)
+- ✅ Auto-update on tile changes
+
+#### User Tile Upload
+- ✅ TileUploadModal component
+- ✅ Square aspect validation (16-256px)
+- ✅ Format support (PNG, JPG, GIF, WebP)
+- ✅ localStorage storage (`fcis_user_tiles`)
+- ✅ Tile registry integration
+
+### 🟡 Partially Implemented Features
+
+#### Library Features
+- 🟡 **Search**: Implemented for name/description/id; filters (Source/Type/Category/Layer) not yet
+- 🟡 **Favorites/Recent**: Not implemented
+- 🟡 **Tags**: Not implemented
+
+#### Tile Patterns
+- 🟡 **System Patterns**: Some system patterns exist; more needed
+- 🟡 **Pattern Categories**: Basic categorization; could be improved
+- 🟡 **Pattern Preview**: Hover preview works; could show more detail
+
+#### Function Sets
+- 🟡 **Placeholder**: "Coming soon" section in Library
+- 🟡 **Design**: Interface defined; implementation not started
+
+#### Moving Platforms
+- ✅ Platform entity system (separate from tiles)
+- ✅ Create Platform from tile group or single-tile selection
+- ✅ Create Moving Platform from any tile(s) (single or group); opens path editor
+- ✅ Make Moving Platform: convert existing platform entity to moving (Selected Object Details → Platform)
+- ✅ Auto-create moving platform when placing moving platform pattern from Library
+- ✅ Platform type selector (Solid, Moving, Destructible, One-Way)
+- ✅ Movement path editor modal (horizontal, vertical, circular, custom)
+- ✅ Path preview on canvas (dashed line, numbered points, direction arrow)
+- ✅ Draggable path points on canvas (click-and-drag waypoints when platform selected)
+- ✅ Animated movement preview on canvas (ping-pong along path)
+- ✅ Moving Platform properties sub-panel (speed, path points, add/remove points, edit path visually)
+- ✅ Speed configuration
+- ✅ Platform selection (click platform or path on canvas)
+- ✅ Delete Platform: button in panel + Delete/Backspace key; deleting all tiles under a platform removes the platform entity
+- ✅ Clean Up Orphaned Platforms: Level Details → Utilities (removes platform entities with no tiles)
+
+### ❌ Not Implemented (Planned)
+
+#### Advanced Tile Types
+- ❌ Enemy spawners
+- ❌ Breakable blocks
+- ❌ One-way platforms (visual indicator)
+- ❌ Springs/jump pads
+- ❌ Keys and locked doors
+- ❌ Hazard zones (special behavior)
+- ❌ Secret areas/hidden passages
+
+#### Parallax System
+- ❌ Layer scroll speed multipliers
+- ❌ Parallax preview in editor
+- ❌ Parallax controls in Properties Panel
+
+#### Export/Import Workflow
+- ❌ Export coloring page (PDF/image with markers)
+- ❌ Corner marker detection
+- ❌ Grid marker detection
+- ❌ Image unwarping/perspective correction
+- ❌ Re-import unwarped background
+
+#### Library Sharing
+- ❌ Share user-created tiles/patterns
+- ❌ Browse community library
+- ❌ Import shared content
+
+#### Cloud/DB Migration
+- ❌ Migrate from localStorage to cloud/DB
+- ❌ Per-user storage isolation
+- ❌ Backup/sync functionality
+
+---
+
+## User Guide
+
+### Getting Started
+
+1. **Open Level Browser**: Click "Design Levels" on dashboard
+2. **Create Level**: Click "Create New Level" button
+3. **Editor Opens**: Level editor loads with default dimensions (150×30 cells)
+
+### Basic Operations
+
+#### Placing Tiles
+1. Select **Place Tool** (or click a tile in Library)
+2. Choose **Layer** (Background/Primary/Foreground)
+3. **Click** to place single tile
+4. **Drag** to place rectangle of tiles
+5. Selected tile/pattern shows hover preview
+
+#### Selecting Tiles
+1. Select **Select Tool**
+2. **Click** a tile to select it (shows in Properties Panel)
+3. Contiguous tiles auto-group
+4. **Ctrl/Cmd + Click** to toggle additional groups
+5. Selected groups highlighted with colored borders
+
+#### Deleting Tiles
+1. Select **Delete Tool**
+2. **Click** a tile to delete it (single tile, no confirmation)
+3. **Shift + Click** to delete entire group (confirmation modal)
+
+#### Copy/Cut/Paste
+1. **Select** tiles or groups (Select tool + click/Ctrl+click)
+2. **Copy**: Ctrl/Cmd + C (or right-click → Copy)
+3. **Cut**: Ctrl/Cmd + X (or right-click → Cut)
+4. **Paste**: Hover where you want it, then Ctrl/Cmd + V (or right-click → Paste)
+5. Clipboard ghost preview shows placement location
+
+#### Right-Click Context Menu
+- Right-click on canvas to open context menu
+- Menu shows relevant actions based on what's clicked:
+  - **Copy/Cut**: For selected items or clicked tile/group
+  - **Paste**: When clipboard has items
+  - **Delete**: For selected groups
+  - **Name Tile/Group**: Set custom names
+  - **Change Layer**: Cycle tile through layers
+  - **Select Texture**: Choose texture from library
+  - **Upload Texture**: Upload new texture for tile
+
+#### Applying Fill Patterns
+1. Open **Library** → **Tile Patterns** section
+2. **Click** a pattern to select it
+3. Ensure **Place Tool** is active
+4. **Click** on tile to apply pattern
+5. **Drag** to paint pattern across multiple tiles
+6. **Shift + Click** to flood-fill entire connected group
+
+#### Saving Patterns
+1. **Select** one or more tile groups (Ctrl/Cmd + click for multiple)
+2. Properties Panel shows "Save to Library" button
+3. **Click** button, enter name
+4. Pattern saved to Library → Patterns section
+
+#### Background Images
+1. **Upload**: Level Details → Background Image → Choose file
+2. **Placement Modal**: Pan and zoom to position crop rectangle
+3. **Approve**: Cropped image becomes level background
+4. **Reuse**: Library → Background Images → "Use" → Placement modal
+
+#### Moving Platforms
+1. **From tiles (single or group):** Select tile(s) with Select tool → Properties Panel shows "Platform from tile" or "Tile group" → **Create Moving Platform** (creates entity with default path, opens path editor).
+2. **From pattern:** Library → Platform tile groups → choose "Moving Platform (H)" or "(V)" → Place on canvas; a moving platform entity is created automatically with default path.
+3. **Convert existing platform:** Click platform on canvas to select it → Selected Object Details → **Platform** section → **Make Moving Platform** (sets type + default path, opens path editor).
+4. **Edit path:** Select moving platform → use **Edit Path** / **Edit Path Visually** in panel, or drag the numbered path points on the canvas.
+5. **Speed & waypoints:** In Selected Object Details → Movement Properties (or table view), edit speed and path point coordinates; use **+ Add Point** or delete points (×) as needed.
+6. **Delete:** Select platform → **Delete Platform** in panel, or press **Delete** / **Backspace**. Deleting all tiles under a platform also removes the platform entity.
+7. **Cleanup:** Level Details → **Utilities** → **Clean Up Orphaned Platforms** to remove platform entities that no longer have tiles.
+
+#### Naming Tiles/Groups
+- **Via Context Menu**: Right-click → Name Tile / Name Tile Group
+- **Via Properties Panel**: Click on name field, edit inline
+- Names stored per-cell or per-group
+- Displayed in Properties Panel and tooltips
+
+#### Changing Layers
+- **Via Context Menu**: Right-click → Change Layer (cycles through)
+- **Via Tool Palette**: Select layer before placing
+- **Via Properties Panel**: Edit selected tile's layer property
+
+### Keyboard Shortcuts
+
+- **Ctrl/Cmd + Z**: Undo
+- **Ctrl/Cmd + Y**: Redo
+- **Ctrl/Cmd + Shift + Z**: Redo (alternative)
+- **Ctrl/Cmd + C**: Copy selection
+- **Ctrl/Cmd + X**: Cut selection
+- **Ctrl/Cmd + V**: Paste at hover location
+- **Delete / Backspace**: Delete selected platform (when a platform is selected)
+- **Middle-Click + Drag**: Pan viewport
+- **Mouse Wheel**: Zoom (anchors to cursor)
+
+### View Modes
+
+- **Grid Mode**: Solid-color blocks only (for printing/coloring)
+- **Texture Mode**: Full textures and background (in-game preview)
+- Toggle via header button
+
+---
+
+## Implementation Details
+
+### Viewport & Navigation
+
+#### Zoom System
+- **Min Zoom**: Longest map dimension fits viewport
+- **Max Zoom**: At least 8×8 tiles visible
+- **Controls**: Mouse wheel (anchors to cursor) + slider in Properties Panel
+- **Implementation**: `clampZoom()` utility, `setZoom()` action
+
+#### Panning System
+- **Method**: Middle-click drag
+- **Alternative**: Level Preview click-to-jump, drag-to-pan
+- **Implementation**: Hidden scroll container (scrollbars hidden via CSS)
+- **Source of Truth**: Container's `scrollLeft`/`scrollTop`
+
+#### Grid Display
+- **Toggle**: Tool Palette checkbox
+- **Bounds**: Only drawn within map bounds
+- **Scaling**: Grid cell size = `gridSize * zoom`
+- **Implementation**: `drawGrid()` utility
+
+### Rendering Pipeline
+
+#### Render Order (Back to Front)
+1. Background image (texture mode only, world-space scaled)
 2. Background layer tiles
-3. Primary layer tiles (with physics)
+3. Primary layer tiles
 4. Foreground layer tiles
 5. Grid overlay (if enabled)
 6. Hover highlights
 7. Selection indicators
+8. Clipboard ghost preview
 
-### Coordinate Conversion
-- **World → Canvas**: `canvasY = canvasHeight - worldY * zoom + offset.y`
-- **Canvas → World**: `worldY = (canvasHeight - canvasY + offset.y) / zoom`
-- **Cell → World**: `worldX = cellX * gridSize`, `worldY = cellY * gridSize`
-- **World → Cell**: `cellX = floor(worldX / gridSize)`, `cellY = floor(worldY / gridSize)`
-- **Note**: All coordinates are in grid cells. Map dimensions are cell counts, not pixels.
+#### View Mode Rendering
+- **Grid Mode**: Solid-color blocks (`TILE_TYPE_COLORS`), no textures, no background
+- **Texture Mode**: Full textures, fill patterns, background image, tint overlays
 
----
+#### Fill Pattern System
+- **Storage**: `TileCell.fillPatternId` (string ID)
+- **Generation**: Procedural patterns via `generateFillPattern()`
+- **Categories**: Stripes, Dots, Grids, Shapes, Textures, Symbols
+- **Rendering**: Background layer (before texture), cached per size
+- **Application**: Click, drag (brush), Shift+click (flood-fill)
 
-## Editor UI Components
+#### Texture System
+- **Storage**: localStorage (`fcis_user_tiles`)
+- **Formats**: PNG, JPG, GIF, WebP
+- **Size**: 16×16px to 256×256px (square only)
+- **Validation**: Square aspect ratio enforced
+- **Caching**: Texture cache in LevelCanvas component
+- **Rendering**: Above fill pattern, with tint overlay in texture mode
 
-### Main Layout
-- **Left Panel**: Tool Palette + Library (Tile Textures, Tile Group Textures, Background Images)
-- **Center**: Level Canvas (viewport)
-- **Right Panel**: Properties Panel
+### Clipboard System
 
-### Editor Header
-- **Left**: Level title; level dimensions (editable inline when in edit mode).
-- **Right**: **View mode** toggle (Grid | Texture), **Last saved** timestamp (e.g. "Last saved: 2:34 PM" or "—"), **Save Level** button, **Back to Dashboard**. Grid mode shows solid-color blocks for printing/coloring/re-upload; Texture mode shows full tiles and background.
+#### Data Structure
+```typescript
+clipboardTiles: Array<{
+  relX: number;      // Relative X from top-left origin
+  relY: number;      // Relative Y from top-left origin
+  tileId: string;
+  passable: boolean;
+  layer: 'background' | 'primary' | 'foreground';
+}>
+```
 
-### Level Browser (Addition)
-- **Entry**: "Design Levels" on dashboard opens Level Browser (not editor directly).
-- **Sections**: Create New Level; My Levels (grid with edit/delete); Shared with Me.
-- **Create**: Creates level, saves to storage, navigates to editor.
-- **Delete**: Local confirmation modal with "Don't warn me again"; preference in User Details. **Scope:** Level deletion only (not in-editor tile/group deletion).
-
-### Properties Panel Sections
-1. **Level Preview**: Mini-map with viewport indicator; click-to-jump, drag-to-pan. **Implemented.**
-2. **Selected Object Details**: Tile properties, coordinates, type
-3. **Level Details**: Name, dimensions, grid settings, zoom control, background image upload (opens placement modal for crop/pan/zoom). **Implemented.**
-4. **Metadata**: Creator, dates, sharing
-
-### Tool Palette
-- Select Tool
-- Place Tool
-- Delete Tool
-  - **Deletion Confirmation (in-editor):** Design: single tile no confirmation, group confirmation. **Not yet implemented** for tile/group deletion in canvas.
-  - **Level deletion (Level Browser):** Uses local modal with "Don't warn me again"; user preference in User Details. **Implemented.**
-- Layer Selector (Background/Primary/Foreground)
-  - Visual indicator shows active layer
-  - Can be dropdown, buttons, or tabs (implementation detail)
-
-### Library (formerly Tile Library)
-- **Location**: Left panel, below Tool Palette. **Implemented.** Title in UI: "Library".
-- **Sections** (implementation):
-  1. **Tile Textures**: My Tiles (user-uploaded, 16–256px square) + system categories (Core, Platforms, Interactive, Hazards). **Implemented.** Click to select for placement; delete on user tiles.
-  2. **Tile Group Textures**: Placeholder — "Coming soon". **Not implemented.**
-  3. **Background Images**: Saved original full images from background uploads. **Implemented.** Thumbnails, "Use" opens placement modal to apply as level background, delete to remove from library. Stored in `fcis_background_images` (localStorage).
-- **Design sections** (not yet implemented):
-  - **Multi-Tile Patterns**: Reusable tile arrangements.
-  - **Function Sets**: Pre-configured tile combinations.
-- **Features**:
-  - Search/filter tiles — **Not implemented.**
-  - Preview on hover — **Minimal** (tooltip/name)
-  - Click-to-select for placement (no drag-and-drop yet)
-  - Right-click to edit (user tiles only) — **Not implemented.**
-
----
-
-## Future Features (Planned, Not Implemented)
-
-### Parallax Scrolling
-- Each layer has independent scroll speed multiplier
-- Background layers scroll slower (depth effect)
-- Foreground layers scroll faster (close-up effect)
-
-### Moving Platforms
-- Path editor for platform movement
-- Horizontal, vertical, circular, custom paths
-- Speed and timing controls
-
-### Enemy System
-- Enemy spawner tiles
-- Enemy type definitions
-- Spawn intervals and limits
-
-### Advanced Tile Types
-- Keys and locked doors
-- Checkpoints/respawn points
-- Secret areas/hidden passages
-- Wind/gravity zones
-- Springs/jump pads
-
----
-
-## Technical Implementation Notes
-
-### Scrollbar as Source of Truth
-- **Diversion:** Scrollbars are not used. A hidden scroll container (overflow scroll, scrollbars hidden via CSS) holds the scrollable content. Viewport position is derived from that container's `scrollLeft`/`scrollTop`. Level Preview click/drag sets a target scroll position that the canvas applies. Middle-click drag updates scroll via the same container.
-- Offset derived from scroll position: `offset.y = mapHeightScaled - canvasHeight - scrollTop` (conceptually; implementation uses the hidden container)
-- No native scrollbar UI; programmatic scroll only
-
-### Grid Drawing
-- Only draw lines within map bounds (0 to mapWidth, 0 to mapHeight)
-- Clip lines to visible map area
-- Scale with zoom: `gridLineSpacing = gridSize * zoom`
-
-### Texture Handling
-- **Storage**: localStorage for now (plan for cloud/DB migration later)
-- **Formats**: PNG, JPG, WebP, GIF, BMP, TIFF, SVG (all standard formats)
-- **Size Limit**: 16×16px to 256×256px per tile texture (square only)
-- **Aspect Ratio**: Square only (1:1)
-- **Upload Options**: Both single upload and bulk upload supported
-- **Scaling**: If uploaded texture doesn't match gridSize exactly, scale to fit gridSize (maintains aspect ratio)
-- **Storage Pattern**: Per-user storage in localStorage, plan for server/cloud later
-- Store tile textures separately (reusable)
-- Reference by ID in tile cells
-- Cache loaded textures
-
-### Background Image Placement
-- **Trigger**: Level Details → Background Image file picker, or Library → Background Images → "Use".
-- **Modal**: `BackgroundImagePlacementModal` shows the full image with a fixed-aspect crop rectangle (level map proportion). User can pan (drag) and zoom (wheel); rectangle cannot warp/squish the image and must fully cover the level.
-- **Approve**: Crops the image to the rectangle in image space, outputs a data URL; that becomes `level.backgroundImage`. The **original** full image is saved to Library (storage key `fcis_background_images`) for reuse.
-- **Display**: LevelCanvas draws `level.backgroundImage` with cover semantics (bottom-left anchor, aspect preserved). Shown only in texture mode.
-
-### Performance
-- Only render visible tiles (viewport culling)
-- Batch tile rendering by layer
-- Use texture atlases for common tiles
-- Lazy load background images
+#### Operations
+- **Copy**: Normalizes selection to top-left origin, stores relative positions
+- **Cut**: Same as copy + removes tiles from map (undoable)
+- **Paste**: Places at hovered cell, computes absolute positions
+- **Ghost Preview**: Semi-transparent yellow/gold preview on hover
 
 ### Undo/Redo System
-- **Memory-Based Limit**: User-configurable RAM limit (e.g., 50MB default)
-- **Default Steps**: Approximately 16 steps (varies based on action size)
-- **Storage**: Undo states stored in memory (RAM)
-- **Actions**: All tile operations (place, delete, move, property changes)
-- **Implementation**: Command pattern with state snapshots
 
-### Save/Load System
-- **Auto-Save**: Debounced save after level changes — **Implemented.** 2s delay after last change; first run after load skipped to avoid redundant save. Writes same JSON to localStorage as manual save.
-- **Last-Saved Indicator**: Timestamp in header next to Save button — **Implemented.** Shows "Last saved: \<time\>" or "Last saved: —"; updates on manual save and autosave; tooltip shows full date/time.
-- **Format**: Binary format for auto-saves (compact, fast) — **N/A** (autosave uses same JSON format as manual save).
-- **Manual Save-Points**: User can create named save points — **Partial:** Manual save via header "Save Level" button; no named save points.
-- **Format**: JSON format for manual saves (human-readable, debuggable) — **Implemented** (levels stored as JSON in localStorage).
-- **Storage**: localStorage for now (plan for cloud/DB migration later) — **Implemented** (`fcis_levels`).
-- **Per-User**: Each user's levels stored separately — **Partial:** Levels keyed by level ID; full per-user isolation TBD.
+#### Implementation
+- **Snapshots**: `structuredClone()` of entire level before each mutation
+- **Storage**: `undoStack` and `redoStack` arrays (max 16 steps)
+- **Actions**: All tile operations create snapshots
+- **Memory**: RAM-based (no disk persistence)
 
-### Level Validation
-- **Warning System**: Invalid levels show warnings but can still be saved
-- **Validation Checks**:
-  - Spawn point present (warning if missing)
-  - Level win condition present (warning if missing)
-  - Map dimensions within bounds (1 to 10000 cells per dimension)
-  - Grid size within bounds (16px to 256px)
-  - Tile references valid
-- **Error Handling**: Graceful degradation for invalid states
+#### Supported Actions
+- `setTileAtCell()` - Place tile
+- `removeTileAtCell()` - Delete tile (also removes platform entities that no longer have tiles)
+- `removeTilesInRange()` - Delete rectangle (also removes orphaned platforms)
+- `placePatternAt()` - Place pattern (auto-creates moving platform when pattern contains moving-platform tiles)
+- `setTileDisplayName()` - Name tile
+- `setGroupDisplayName()` - Name group
+- `updateLevelDimensions()` - Resize level
+- `updateLevel()` - Update level metadata
+- `cutSelectionToClipboard()` - Cut operation
+- `pasteClipboardAt()` - Paste operation
+- `deletePlatform()` - Remove platform entity
+- `cleanupOrphanedPlatforms()` - Remove all platform entities that have no tiles in their bounds
 
----
+### Platform & Orphan Cleanup
+- **Orphan detection**: After `removeTileAtCell()` or `removeTilesInRange()`, platforms whose bounds contain no tiles are removed in the same undo step.
+- **Manual cleanup**: Level Details → Utilities → "Clean Up Orphaned Platforms" runs the same filter and reports count removed.
+- **Implementation**: `filterPlatformsWithTiles()` helper in editor store; used by tile removal and by `cleanupOrphanedPlatforms()`.
 
-## Color Key Legend
+### Storage System
 
-The editor should display a color key showing:
-- **Blue**: Solid platforms
-- **Green**: Spawn points
-- **Gold**: Level win triggers
-- **Purple**: Teleporters/portals
-- **Red**: Death tiles
-- **Dark Red**: Hazard zones (fall-to-die)
-- **Cyan**: One-way platforms
-- **Orange**: Breakable blocks
-- **Yellow**: Moving platforms
-- **Pink**: Springs/jump pads
-- **Bronze**: Keys
-- **Brown**: Locked doors
-- **Magenta**: Enemy spawners
-- **Light Blue**: Collectibles
-- **Gray**: Background decorations
-- **Dark Gray**: Foreground decorations
+#### localStorage Keys
+- `fcis_levels`: Level data (JSON)
+- `fcis_user_tiles`: User-uploaded tiles (JSON)
+- `fcis_tile_patterns`: User-created patterns (JSON)
+- `fcis_background_images`: Background image originals (JSON)
 
----
+#### Data Format
+- **Levels**: Full Level objects (JSON)
+- **Tiles**: Array of TileDefinition objects (JSON)
+- **Patterns**: Array of TilePattern objects (JSON)
+- **Background Images**: Array of `{ id, name, url, createdAt }` (JSON)
 
-## Export/Import Workflow
+### Context Menu System
 
-### Print & Color Workflow
-1. User creates level in editor
-2. Export as printable PDF/image (coloring page)
-3. Kids print and color with physical media
-4. Scan/photograph colored version (at angle, warped)
-5. Re-import as background image
-6. System unwarps/distorts image to align with grid
-7. Tiles align with colored background
+#### Position Calculation
+- Estimates menu size based on visible items
+- Checks available space (above/below, left/right)
+- Flips position to stay within canvas bounds
+- Clamps final position to canvas edges
 
-### Coordinate Mapping
-- Physical paper uses same bottom-left coordinate system
-- Grid lines visible on export for alignment
-- Re-import maintains coordinate alignment after unwarping
+#### Action Availability
+- **Copy/Cut**: When selection exists OR tile clicked
+- **Paste**: When clipboard has items
+- **Delete**: When groups selected
+- **Name Tile**: When tile exists at click location
+- **Name Group**: When tile is part of multi-tile group
+- **Change Layer**: When tile exists
+- **Texture Actions**: When tile exists
 
-### Image Unwarping System
-- **Purpose**: Correct perspective distortion from photographed/scanned coloring pages
-- **Corner Markers**: Required 4 corner markers (detected automatically)
-  - Top-left, top-right, bottom-left, bottom-right
-  - Visual markers printed on export (e.g., black squares with white borders)
-- **Grid Markers**: Optional grid intersection markers for better accuracy
-  - Markers at top/bottom of each column
-  - Markers at left/right of each row
-  - Enables handling of complex warping (non-rectangular distortion)
-- **Detection**: Computer vision techniques (OpenCV.js, TensorFlow.js)
-- **Unwarping**: Perspective transformation to align with grid
-- **Fallback**: If grid markers not detected, use corner markers only
-- **Export Format**: High-resolution PDF/image with visible markers
-- **Resolution**: Sufficient DPI for clear marker detection (e.g., 300 DPI)
+### Tile Grouping System
 
----
+#### Group Detection
+- **Algorithm**: `findConnectedTiles()` - flood-fill from seed tile
+- **Criteria**: Same `tileId`, touching (4-directional)
+- **Group ID**: Hash of sorted cell coordinates
+- **Storage**: `TileCell.groupId` (optional, for display names)
 
-## Testing Considerations
+#### Multi-Group Selection
+- **Method**: Ctrl/Cmd + click toggles groups
+- **Storage**: `selectedTileGroups` array (array of groups)
+- **Primary**: Last clicked group (`selectedTileGroup`)
+- **Operations**: Copy/cut/paste work on all selected groups
 
-### Coordinate System
-- Verify bottom-left origin in all conversions
-- Test hover coordinates match actual tile positions
-- Ensure grid alignment at all zoom levels
+### Background Image System
 
-### Layer System
-- Verify rendering order (back to front)
-- Test layer selection and placement
-- Ensure physics only applies to primary layer
+#### Upload Flow
+1. User selects file (Level Details or Library)
+2. Image loaded into `BackgroundImagePlacementModal`
+3. Crop rectangle shown (fixed aspect = level aspect)
+4. User pans/zooms to position
+5. On approve: Crop to rectangle, save as data URL
+6. Original saved to Library if from upload
 
-### Zoom & Pan
-- Test zoom limits (min/max)
-- Verify cursor anchoring during zoom
-- ~~Test scrollbar behavior at all zoom levels~~ **Diversion:** No scrollbars; test middle-click pan and Level Preview click/drag at all zoom levels.
-- Ensure no empty space beyond map bounds
-
-### Tile Placement
-- Test single tile placement
-- Test drag-to-place multiple tiles
-- Verify layer assignment
-- Test tile type color coding
-- Ensure hover highlights align correctly
-- Test overlap detection (red highlighting)
-- Test overlap confirmation dialog
-- Test boundary cutoff (placement beyond map edges)
-- Verify no same-layer overlap allowed
-
-### Tile Grouping
-- Test contiguous tile grouping
-- Test multi-group selection (Ctrl/Cmd + click)
-- Verify individual tile properties within groups
-- Test group deletion (entire group removed)
-
-### Pattern/Set Placement
-- Test pattern placement
-- Test function set placement
-- Verify start/end tile behavior
-- Test connection maintenance after placement
-- Test boundary cutoff for patterns/sets
-
-### Undo/Redo
-- Test undo/redo for all tile operations
-- Verify memory limit enforcement
-- Test undo state persistence
-
-### Save/Load
-- Test autosave (debounced 2s after changes; first run after load skipped)
-- Test last-saved timestamp updates on manual save and autosave
-- Test manual save and save-status feedback
-- Verify JSON format (localStorage)
-- Test per-user storage isolation
-
-### Image Unwarping
-- Test corner marker detection
-- Test grid marker detection (optional)
-- Test perspective transformation
-- Test alignment with grid after unwarping
-- Test fallback to corner-only detection
+#### Display
+- **Storage**: `level.backgroundImage` (data URL string)
+- **Rendering**: World-space scaling (scales with zoom)
+- **Anchor**: Bottom-left of level
+- **Mode**: Texture mode only
+- **Cover**: Aspect-preserved cover (no squish)
 
 ---
 
-## Library (Tile Library System)
+## Testing Status
 
-### Overview
-The Library (UI title: "Library") provides organized access to tile textures, tile group textures, and background images. It supports system-provided tiles, user-uploaded tiles, and saved background images for reuse.
+### ✅ Tested Features
 
-### Library Structure
+#### Unit Tests
+- ✅ Editor store (initial state, actions, deletePlatform, updatePlatformProperties, cleanupOrphanedPlatforms, placePatternAt moving platform, removeTileAtCell/removeTilesInRange platform cleanup)
+- ✅ Fill pattern generator (pattern generation, categories)
+- ✅ Tile map utilities (setTileAtCell, removeTileAtCell)
+- ✅ Level validation (spawn/win checks)
+- ✅ Grid utilities (coordinate conversion)
+- ✅ Logger utility
+- ✅ Platform model (create, update, validate)
 
-#### 1. Tile Textures Section
-- **Purpose**: Individual tile textures/images for placement on the map
-- **Content**:
-  - **My Tiles**: User-uploaded custom textures (16–256px square; PNG/JPG/GIF/WebP). Stored in `fcis_user_tiles` (localStorage). **Implemented.**
-  - **System categories**: Core, Platforms, Interactive, Hazards (solid, spawn, goal, checkpoint, collectible, death, moving platforms, etc.). **Implemented.**
-- **Display**: List of tile thumbnails with names
-- **Actions**: Click to select for placement; delete on user tiles. **Implemented.**
+#### Integration Tests
+- ✅ Level editor (basic operations)
+- ✅ Level canvas (rendering, interactions)
+- ✅ Properties panel (display, editing)
+- ✅ Tool palette (tool selection)
 
-#### 2. Tile Group Textures Section
-- **Purpose**: Textures for multi-tile groups (future)
-- **Status**: Placeholder — "Coming soon". **Not implemented.**
+### 🟡 Partially Tested
 
-#### 3. Background Images Section
-- **Purpose**: Reusable full images for level backgrounds (originals from uploads)
-- **Content**: Saved originals when user approves a background placement. Stored in `fcis_background_images` (localStorage). **Implemented.**
-- **Display**: Thumbnails with names (e.g. "Background 1/28/2026, 2:45:30 PM")
-- **Actions**:
-  - **Use**: Opens placement modal with that image so user can crop/pan/zoom and apply to current level. **Implemented.**
-  - **Delete**: Removes from library. **Implemented.**
-- **Flow**: Upload in Level Details (or "Use" from Library) → placement modal → crop rectangle, pan/zoom → approve → cropped image becomes level background; original is stored in this section if from upload.
+- 🟡 Context menu (manual testing only)
+- 🟡 Clipboard operations (manual testing only)
+- 🟡 Background image placement (manual testing only)
+- 🟡 Pattern placement (manual testing only)
 
-#### 4. Multi-Tile Patterns Section (design, not implemented)
-- **Purpose**: Reusable arrangements of multiple tiles
-- **Content**:
-  - System patterns: Common arrangements (stairs, platforms, etc.)
-  - User patterns: Saved tile arrangements
-- **Display**: Grid of pattern thumbnails with names
-- **Actions**:
-  - Click to select pattern
-  - Preview shows tile arrangement
-  - Place entire pattern at once
-  - Right-click user patterns to edit/delete
+### ❌ Needs Testing
 
-#### 5. Function Sets Section (design, not implemented)
-- **Purpose**: Pre-configured tile combinations with gameplay functionality
-- **Content**:
-  - System sets: Common functional combinations
-    - Springboard + Landing Platform
-    - Key + Locked Door (linked)
-    - Moving Platform + Trigger Zone
-    - Enemy Spawner + Patrol Area
-  - User sets: Custom functional combinations
-- **Display**: Grid of set thumbnails with descriptions
-- **Actions**:
-  - Click to select set
-  - Preview shows functional relationship
-  - Place entire set with connections intact
-  - Right-click user sets to edit/delete
-
-### Library Features
-
-#### Search & Filter
-- **Search**: By name, type, or description
-- **Filters**:
-  - Source: System / User / All
-  - Type: Tile / Pattern / Set
-  - Category: Platform / Hazard / Collectible / Decoration / etc.
-  - Layer: Background / Primary / Foreground
-
-#### Organization
-- **Categories**: Group tiles by function/type
-- **Tags**: User-assignable tags for custom organization
-- **Favorites**: Star frequently-used items
-- **Recent**: Show recently used items
-
-#### User Library Management
-- **Upload Tiles**: Single or bulk upload of textures
-- **Create Patterns**: Select tiles on canvas, save as pattern
-- **Create Sets**: Select tiles with properties, define connections, save as set
-- **Edit**: Modify user-created items (name, properties, connections)
-- **Delete**: Remove user-created items
-- **Share**: Share user-created items with other users (future)
-
-### System Library Defaults
-
-#### Tile Pictures (System)
-- Solid Platform (Blue)
-- Spawn Point (Green)
-- Level Win (Gold)
-- Teleporter (Purple)
-- Death Tile (Red)
-- Hazard Zone (Dark Red)
-- One-Way Platform (Cyan)
-- Breakable Block (Orange)
-- Moving Platform (Yellow)
-- Spring/Jump Pad (Pink)
-- Key (Bronze)
-- Locked Door (Brown)
-- Enemy Spawner (Magenta)
-- Collectible (Light Blue)
-- Background Decoration (Gray)
-- Foreground Decoration (Dark Gray)
-
-#### Multi-Tile Patterns (System)
-- **Staircase**: Ascending/descending steps
-- **Platform Bridge**: Horizontal platform section
-- **Wall Section**: Vertical wall
-- **Corner Pieces**: Inner/outer corners
-- **Platform with Decoration**: Platform with background/foreground tiles
-
-#### Function Sets (System)
-- **Springboard Set**: Spring pad + safe landing platform
-- **Key & Door Set**: Key + matching locked door (pre-linked)
-- **Moving Platform Set**: Moving platform + start/end markers
-- **Enemy Patrol Set**: Enemy spawner + patrol boundaries
-- **Collectible Path**: Series of collectibles in safe path
-- **Hazard Crossing**: Hazard zone with safe crossing points
-
-### User Library Workflow
-
-#### Creating Tile Pictures
-1. Upload texture/image file (square aspect ratio, max 256×256px)
-   - Single upload or bulk upload supported
-2. System validates: square aspect ratio, size within limits
-3. If texture doesn't match gridSize exactly, scales to fit (maintains aspect ratio)
-4. Define tile properties (type, physics, layer)
-5. Save to user library (localStorage, per-user)
-
-#### Creating Multi-Tile Patterns
-1. Place tiles on canvas in desired arrangement (contiguous/touching tiles form groups)
-2. Select one or more tile groups (multi-select with Ctrl/Cmd + click)
-3. Click "Save to Library" button in Selected Object Details panel
-4. Choose: Personal Library or System Library (admin only)
-5. Name pattern and add description
-6. Pattern saved - can be placed as single unit
-7. **Note**: Patterns are simply shapes of grouped (touching) tiles or multi-selects of groups
-
-#### Creating Function Sets
-1. Place tiles with desired properties (contiguous/touching tiles form groups)
-2. Select one or more tile groups (multi-select with Ctrl/Cmd + click)
-3. Define start tile and end tile (for teleporters, etc.)
-4. Configure functional properties (e.g., spring force, key ID)
-5. Click "Save to Library" button in Selected Object Details panel
-6. Choose: Personal Library or System Library (admin only)
-7. Name set and add description
-8. Set saved - maintains connections when placed
-9. **Connection Behavior**: End tile moves with its group, but if left behind, that becomes the new teleport destination
-10. **Placement Origin**: Patterns and sets placed with bottom-left corner as origin (matches coordinate system)
-11. **Visualization**: Connections shown with lines/arrows and highlight colors in editor
-
-### Library UI Components
-
-#### Library Panel Layout
-```
-┌─────────────────────────┐
-│  Tile Library           │
-├─────────────────────────┤
-│  [Search] [Filter ▼]    │
-├─────────────────────────┤
-│  [Pictures] [Patterns]  │
-│  [Function Sets]        │
-├─────────────────────────┤
-│  [System] [User]        │
-├─────────────────────────┤
-│  ┌───┐ ┌───┐ ┌───┐     │
-│  │   │ │   │ │   │     │
-│  └───┘ └───┘ └───┘     │
-│  Tile  Tile  Tile       │
-│  ┌───┐ ┌───┐ ┌───┐     │
-│  │   │ │   │ │   │     │
-│  └───┘ └───┘ └───┘     │
-│  Tile  Tile  Tile       │
-└─────────────────────────┘
-```
-
-#### Tile Preview Modal
-- Shows tile texture at full size
-- Displays properties and metadata
-- Edit button (for user tiles)
-- Use button (select for placement)
-
-#### Pattern Preview Modal
-- Shows pattern layout
-- Lists included tiles
-- Edit button (for user patterns)
-- Use button (select for placement)
-
-#### Function Set Preview Modal
-- Shows set layout
-- Highlights start tile and end tile
-- Shows connections between tiles
-- Lists functional relationships
-- Edit button (for user sets)
-- Use button (select for placement)
-
-#### Selected Object Details Panel Enhancements
-- **Save to Library Button**: Appears when one or more tile groups are selected
-- **Admin Option**: If user is admin, shows option to save to Personal or System library
-  - **Admin Detection**: User with `id === 'admin'` or `username === 'admin'` (hardcoded admin user)
-- **Multi-Group Support**: Can save multiple selected groups as a single pattern/set
+- ❌ Undo/redo edge cases (empty stacks, max steps)
+- ❌ Multi-group selection edge cases
+- ❌ Fill pattern flood-fill edge cases
+- ❌ Context menu position calculation edge cases
+- ❌ Clipboard paste boundary handling
+- ❌ Level browser (create/edit/delete flows)
+- ❌ User tile upload validation
+- ❌ Pattern save/load from library
 
 ---
 
-## Open Questions
+## Next Steps
 
-1. **Background Image**: Should background image be required or optional?
-2. **Parallax Preview**: Should editor show parallax effect preview (even if not implemented)?
-3. **Moving Platform Editor**: How should users define platform paths? Visual editor or coordinate list?
-4. **Library Sharing**: Should users be able to share their custom tiles/patterns/sets with others? (Planned for Phase 9)
-5. **Marker Design**: What should the corner/grid markers look like visually? (e.g., black squares with white borders, QR-code-like patterns)
-6. **Layer Selector UI**: What form should the layer selector take? (dropdown, buttons, tabs - implementation detail)
+### Immediate Priorities
+
+1. **Function Sets**
+   - Define interface and data model
+   - Create system function sets (springboard, key+door, etc.)
+   - Library UI for function sets
+   - Placement with connection preservation
+
+2. **Library Filters**
+   - Source filter (System/User/All)
+   - Type filter (Tile/Pattern/Set)
+   - Category filter
+   - Layer filter
+
+3. **Test Coverage**
+   - Add tests for context menu
+   - Add tests for clipboard operations
+   - Add tests for fill pattern flood-fill
+   - Add edge case tests for undo/redo
+
+### Short-Term (Next Sprint)
+
+4. **Pattern Improvements**
+   - Better pattern previews
+   - Pattern categories/grouping
+   - More system patterns
+   - Pattern search/filter
+
+5. **User Experience**
+   - Favorites system
+   - Recent items
+   - Better tooltips
+   - Keyboard shortcut hints
+
+6. **Performance**
+   - Optimize large level rendering
+   - Texture cache improvements
+   - Pattern cache optimization
+
+### Medium-Term (Next Month)
+
+7. **Advanced Tile Types**
+   - Enemy spawners
+   - Breakable blocks
+   - One-way platforms
+   - Springs/jump pads
+   - Keys and locked doors
+
+8. **Export/Import**
+   - Export coloring page (PDF/image)
+   - Corner marker system
+   - Image unwarping (basic)
+
+9. **Documentation**
+    - User tutorial
+    - Video walkthrough
+    - API documentation
 
 ---
 
-## Implementation Phases
+## Lessons Learned
 
-### Phase 1: Core Editor — **Done**
-- Basic tile placement/selection/deletion ✅
-- Grid display ✅
-- Zoom and pan ✅
-- Single layer (primary) — **Overtaken:** multi-layer (background, primary, foreground) + background image implemented
+### Major Struggles & Solutions
 
-### Phase 2: Layer System — **Mostly done**
-- Add background image layer ✅ (upload in Level Details or Library → Background Images; placement modal for crop/pan/zoom; cropped image as level background, cover; original saved to Library)
-- Add background tile layer ✅
-- Add foreground tile layer ✅
-- Layer selection UI ✅
+#### 1. Background Image Scaling with Zoom
+**Problem**: Background image appeared "disconnected" from tiles when zooming - it didn't scale with the viewport.
 
-### Phase 3: Tile Types & Library — **Partial**
-- Color coding system ✅
-- Tile type definitions ✅ (DEFAULT_TILES, TILE_TYPE_COLORS)
-- Properties panel for tile editing ✅
-- System tile library (default tiles) ✅ (TileLibrary with Core/Platforms/Interactive/Hazards)
-- User tile upload (localStorage, formats, 16–256px square) ✅ — TileUploadModal, texture rendering on canvas
-- Tile library UI (pictures section) ✅ (categorized tiles; no Patterns/Function Sets)
-- Layer selector with visual indicator ✅
-- Individual tile storage (each cell independent) ✅
-- Contiguous tile grouping for selection — **Partial** (grouping exists; multi-group unclear)
-- Multi-group selection support — **Unverified**
+**Root Cause**: Background was being scaled to canvas viewport size instead of world-space size.
 
-### Phase 3.5: Level Browser & UX (Addition)
-- Level Browser (Design Levels → browse/create/edit/delete) ✅
-- Level delete confirmation modal with "Don't warn me again" ✅
-- User preference "Don't confirm when deleting levels" in User Details ✅
+**Solution**: Changed scaling calculation to use world-space dimensions (`mapWidthPixels`, `mapHeightPixels`) instead of canvas dimensions. Background now scales with zoom and stays aligned with tiles.
 
-### Phase 4: Patterns & Function Sets — **Not started**
-- Multi-tile patterns system
-- Pattern creation from selected groups (Save to Library button)
-- Pattern library UI
-- Function sets system
-- Function set creation with start/end tiles
-- Function set library UI
-- System default patterns and sets
-- Admin system library save option
-- Overlap detection and confirmation system
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (render function)
 
-### Phase 5: Advanced Features
-- Moving platforms
-- Enemy spawners
+#### 2. Fill Pattern Seamless Tiling
+**Problem**: Brick and hexagon patterns had gaps and didn't tile seamlessly.
+
+**Root Cause**: Patterns were drawn only within canvas bounds, causing edge artifacts.
+
+**Solution**: Extended drawing loops to draw extra rows/columns beyond canvas edges, ensuring seamless wrapping. Changed brick pattern to solid fills with thin mortar lines, hexagons to filled shapes with outlines.
+
+**Files Changed**: `src/utils/fillPatternGenerator.ts` (`generateBricks`, `generateHexagons`)
+
+#### 3. Texture Mode Tinting Leakage
+**Problem**: Semi-transparent tints were leaking between tiles, causing incorrect colors.
+
+**Root Cause**: `globalAlpha` wasn't being reset between tile draws.
+
+**Solution**: Wrapped each tile draw in `ctx.save()` / `ctx.restore()` to isolate alpha state.
+
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (render function)
+
+#### 4. Clipboard Copy/Cut for Individual Tiles
+**Problem**: Copy/cut only worked for selected groups, not individual tiles.
+
+**Root Cause**: `copySelectionToClipboard()` and `cutSelectionToClipboard()` only checked `selectedTileGroups`, not `selectedTileEntry`.
+
+**Solution**: Updated both functions to check `selectedTileEntry` as fallback, creating single-tile selection array when no groups selected.
+
+**Files Changed**: `src/stores/editorStore.ts` (clipboard functions)
+
+#### 5. Context Menu Position Awareness
+**Problem**: Context menu could appear off-screen when right-clicking near edges.
+
+**Root Cause**: Menu was positioned at click coordinates without checking available space.
+
+**Solution**: Calculate available space in all directions, flip menu position (above/below, left/right) to stay in bounds, clamp final position to canvas edges.
+
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (context menu rendering)
+
+#### 6. Duplicate Variable Declarations
+**Problem**: Multiple instances of `selectedLayer` and `clipboardTiles` declared in store interface.
+
+**Root Cause**: Accidental duplicate declarations during rapid development.
+
+**Solution**: Removed duplicates, ensured single source of truth.
+
+**Files Changed**: `src/stores/editorStore.ts` (interface definitions)
+
+#### 7. Selection State Being Cleared
+**Problem**: Selecting a tile would briefly set the selection, then immediately clear it. Properties Panel always showed "No object selected".
+
+**Root Cause**: After `setSelectedTileEntry()` was called, we called `setSelectedPlatform(null)`. But `setSelectedPlatform` has a side effect: it clears `selectedTileEntry` to null (designed to ensure only one type of object is selected). This was immediately wiping out the selection we just made.
+
+**Solution**: Removed the redundant `setSelectedPlatform(null)` call from the select tool handler. `setSelectedTileEntry()` already sets `selectedPlatform: null` internally, so the extra call was unnecessary and destructive.
+
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (handleMouseDown select tool logic)
+
+#### 8. Context Menu Click Handlers Not Firing
+**Problem**: Clicking buttons in the context menu (Delete, Copy, etc.) did nothing - no action occurred.
+
+**Root Cause**: A window-level click listener that closes the context menu was using capture phase (`addEventListener('click', handler, true)`), which fires BEFORE the button's onClick handlers. It was closing the menu before the button click could be processed.
+
+**Solution**: Added check in the window click handler to ignore clicks inside the context menu: `if (target.closest('.canvas-context-menu')) return;`
+
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (context menu close handler)
+
+#### 9. CollapsibleSection Not Auto-Expanding on Selection
+**Problem**: Selected Object Details section stayed collapsed when selecting a tile, even though it should auto-expand.
+
+**Root Cause**: `CollapsibleSection` used `useState(defaultExpanded)` which only sets the initial state. When selection changed after mount, the section wouldn't expand.
+
+**Solution**: Added `autoExpand` prop to `CollapsibleSection` that uses `useEffect` to expand when the prop becomes true.
+
+**Files Changed**: `src/components/level-editor/CollapsibleSection.tsx`, `src/components/level-editor/PropertiesPanel.tsx`
+
+#### 10. Right-Click Not Dismissing Tool Before Context Menu
+**Problem**: Right-clicking while using Platform or Delete tool would open the context menu immediately instead of first switching to Select tool.
+
+**Root Cause**: Two separate handlers existed: `handleMouseDown` had dismiss logic for `e.button === 2`, but `handleContextMenu` (bound to `onContextMenu`) bypassed it and opened the menu directly. `onContextMenu` fires AFTER `onMouseDown`.
+
+**Solution**: Moved the dismiss-tool logic into `handleContextMenu` and simplified `handleMouseDown` to just return for right-clicks.
+
+**Files Changed**: `src/components/level-editor/LevelCanvas.tsx` (handleContextMenu)
+
+### Design Decisions
+
+#### No Scrollbars
+**Decision**: Hidden scroll container instead of visible scrollbars.
+
+**Rationale**: Cleaner UI, more space for canvas. Navigation via middle-click drag and Level Preview is more intuitive.
+
+**Trade-offs**: Less discoverable, but navigation hint helps.
+
+#### Fill Patterns as Primary Visuals
+**Decision**: System tiles use fill patterns as primary visuals, textures as optional overlay.
+
+**Rationale**: Consistent visual language, works without texture uploads, symbol-based patterns are clear and recognizable.
+
+**Trade-offs**: Less "realistic" but more game-like and consistent.
+
+#### Relative Clipboard Coordinates
+**Decision**: Clipboard stores relative coordinates (top-left origin) instead of absolute.
+
+**Rationale**: Allows pasting anywhere, preserves relative layout, easier to reason about.
+
+**Trade-offs**: Slightly more complex paste logic, but much more flexible.
+
+#### Undo Snapshots (Not Command Pattern)
+**Decision**: Full level snapshots instead of command objects.
+
+**Rationale**: Simpler implementation, handles all mutations uniformly, easier to debug.
+
+**Trade-offs**: More memory usage, but acceptable for 16-step limit.
+
+---
+
+## Future Roadmap
+
+### Phase 5: Advanced Features (In Progress)
+- ✅ Moving platforms (completed)
+- Enemy spawners ⭐ (Next)
 - Breakable blocks
 - One-way platforms
 - Springs/jump pads
 - Keys and locked doors
 - Hazard zones
 
-### Phase 7: Export/Import & Unwarping
-- Export coloring page (PDF/image with markers)
-- Corner marker detection system
-- Grid marker detection system (optional)
+### Phase 6: Function Sets
+- Function set data model
+- System function sets
+- Function set editor
+- Connection visualization
+- Placement with connections
+
+### Phase 7: Export/Import
+- Export coloring page (PDF/image)
+- Corner marker detection
+- Grid marker detection (optional)
 - Image unwarping/perspective correction
-- Re-import unwarped background image
-- Alignment with grid after unwarping
+- Re-import workflow
 
-### Phase 8: Parallax (Future)
-- Parallax scrolling implementation
-- Layer scroll speed controls
-- Preview in editor
+### Phase 8: Parallax
+- Layer scroll speed multipliers
+- Parallax preview in editor
+- Parallax controls in Properties Panel
 
-### Phase 9: Library Sharing (Future)
-- Share user-created tiles/patterns/sets
-- Browse community library
+### Phase 9: Library Sharing
+- Share user-created content
+- Community library browser
 - Import shared content
+- Rating/favorites system
 
-### Phase 10: Cloud/DB Migration (Future)
-- Migrate texture storage from localStorage to cloud/DB
-- Migrate level storage from localStorage to cloud/DB
-- Migrate library storage from localStorage to cloud/DB
+### Phase 10: Cloud/DB Migration
+- Migrate from localStorage
+- Per-user storage isolation
+- Backup/sync functionality
+- Offline support
+
+---
+
+## Appendix: Design Diversions
+
+### Implemented Differently Than Original Design
+
+1. **Scrollbars**: Design specified visible scrollbars; we use hidden scroll container with middle-click drag navigation.
+
+2. **Level Browser**: Not in original design; added as separate screen before editor.
+
+3. **Level Deletion UX**: Uses local modal with "Don't warn me again" preference instead of simple `confirm()`.
+
+4. **Background Image Format**: Design specified `{ url, parallaxSpeed }` object; implementation uses `string` (data URL) for simplicity.
+
+5. **Fill Patterns**: Not in original design; added as enhancement for visual consistency and symbol-based tile identification.
+
+6. **Context Menu**: Not in original design; added for better UX and discoverability of actions.
+
+7. **Clipboard Operations**: Original design didn't specify; added for productivity and pattern reuse.
+
+---
+
+## Appendix: Open Questions
+
+1. **Background Image**: Should background image be required or optional? (Currently optional)
+
+2. **Parallax Preview**: Should editor show parallax effect preview even if not implemented? (Currently no)
+
+3. **Moving Platform Editor**: Visual editor or coordinate list? (Resolved: Visual editor with path type presets + custom drawing)
+
+4. **Library Sharing**: Timeline for sharing features? (Phase 9)
+
+5. **Marker Design**: What should corner/grid markers look like? (TBD for export/import)
+
+6. **Layer Selector UI**: Dropdown, buttons, or tabs? (Currently buttons in Tool Palette)
+
+---
+
+**Document Maintained By**: Development Team  
+**Last Review**: January 2026  
+**Next Review**: After Phase 5 completion

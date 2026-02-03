@@ -22,9 +22,13 @@ This document provides a detailed, step-by-step implementation plan for Phase 1,
 - ✅ **Task 4: Basic Level Editor** - COMPLETE (Branch: `feature/phase1-level-editor`)
 - 🔲 **Task 5: Local Storage** - Not Started
 
-**Last Updated:** 2026-01-23
+**Last Updated:** 2026-01-28
 
 **Recent Updates:**
+- **In-editor deletion confirmation:** Shift+click Delete on a multi-tile group opens ConfirmDeleteTileGroupModal; single-tile delete and lone-tile Shift+delete have no confirmation.
+- **Overlap detection and confirmation:** Placing over same-layer tiles shows overlapping groups in red and ConfirmPlaceOverwriteModal ("Replace existing tiles?"); placement without overlap is immediate.
+- **Level validation:** Spawn/win checks with non-blocking warnings in Properties Panel → Level Details; `validateLevel` and `levelValidationWarnings` in editor store; save allowed with warnings.
+- **System tile textures:** Programmatic textures for system tiles via `tileTextureGenerator`; texture mode shows generated patterns; grid mode still uses solid-color blocks.
 - Updated editorStore and gameStore to use real models from Task 3
 - Implemented minimal localStorage-based level storage (temporary for Task 4)
 - Added LevelEditor placeholder component with routing

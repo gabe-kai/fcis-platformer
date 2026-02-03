@@ -40,8 +40,11 @@ describe('PropertiesPanel', () => {
     selectedPlatform: null,
     selectedTileEntry: null,
     selectedTileGroup: null,
+    selectedTileGroups: [],
     updatePlatformProperties: mockUpdatePlatformProperties,
     deletePlatform: mockDeletePlatform,
+    placePlatform: vi.fn(),
+    setSelectedPlatform: vi.fn(),
     updateLevel: mockUpdateLevel,
     updateLevelDimensions: mockUpdateLevelDimensions,
     gridEnabled: true,
@@ -49,6 +52,14 @@ describe('PropertiesPanel', () => {
     removeTileAtCell: mockRemoveTileAtCell,
     zoom: 1,
     viewportState: { scrollLeft: 0, scrollTop: 0, canvasWidth: 800, canvasHeight: 600 },
+    levelValidationWarnings: { missingSpawn: false, missingWin: false },
+    setPendingBackgroundImageDataUrl: vi.fn(),
+    setTileAtCell: vi.fn(),
+    setTileDisplayName: vi.fn(),
+    setGroupDisplayName: vi.fn(),
+    setSelectedTileEntry: vi.fn(),
+    setSelectedTileGroup: vi.fn(),
+    setZoom: vi.fn(),
   };
 
   beforeEach(() => {
@@ -86,13 +97,8 @@ describe('PropertiesPanel', () => {
     render(<PropertiesPanel />);
     
     expect(screen.getByText('Selected Object Details')).toBeInTheDocument();
-    // Collapsible section is collapsed by default when no platform selected
-    // Click to expand it
-    const sectionHeader = screen.getByText('Selected Object Details').closest('button');
-    if (sectionHeader) {
-      await user.click(sectionHeader);
-    }
-    
+    // Section is now expanded by default (defaultExpanded={true})
+    // So we should see the empty state content directly
     expect(screen.getByText('No object selected')).toBeInTheDocument();
     expect(screen.getByText(/Select a tile or platform to view its properties/)).toBeInTheDocument();
   });
@@ -350,5 +356,144 @@ describe('PropertiesPanel', () => {
     
     expect(mockConfirm).toHaveBeenCalled();
     expect(mockDeletePlatform).not.toHaveBeenCalled();
+  });
+
+  describe('Level Validation Warnings', () => {
+    it('should display validation warnings when spawn is missing', () => {
+      const mockLevel = {
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+        gridSize: 64,
+        tileGrid: makeTileGrid(12, 9),
+        platforms: [],
+        cameraMode: 'free' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isShared: false,
+        sharingScope: 'private' as const,
+        isTemplate: false,
+      };
+
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...baseStore,
+        currentLevel: mockLevel,
+        levelValidationWarnings: { missingSpawn: true, missingWin: false },
+      });
+
+      render(<PropertiesPanel />);
+
+      expect(screen.getByText('Validation')).toBeInTheDocument();
+      expect(screen.getByText('Missing spawn point')).toBeInTheDocument();
+      expect(screen.queryByText('Missing win condition')).not.toBeInTheDocument();
+    });
+
+    it('should display validation warnings when win is missing', () => {
+      const mockLevel = {
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+        gridSize: 64,
+        tileGrid: makeTileGrid(12, 9),
+        platforms: [],
+        cameraMode: 'free' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isShared: false,
+        sharingScope: 'private' as const,
+        isTemplate: false,
+      };
+
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...baseStore,
+        currentLevel: mockLevel,
+        levelValidationWarnings: { missingSpawn: false, missingWin: true },
+      });
+
+      render(<PropertiesPanel />);
+
+      expect(screen.getByText('Validation')).toBeInTheDocument();
+      expect(screen.getByText('Missing win condition')).toBeInTheDocument();
+      expect(screen.queryByText('Missing spawn point')).not.toBeInTheDocument();
+    });
+
+    it('should display both warnings when spawn and win are missing', () => {
+      const mockLevel = {
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+        gridSize: 64,
+        tileGrid: makeTileGrid(12, 9),
+        platforms: [],
+        cameraMode: 'free' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isShared: false,
+        sharingScope: 'private' as const,
+        isTemplate: false,
+      };
+
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...baseStore,
+        currentLevel: mockLevel,
+        levelValidationWarnings: { missingSpawn: true, missingWin: true },
+      });
+
+      render(<PropertiesPanel />);
+
+      expect(screen.getByText('Validation')).toBeInTheDocument();
+      expect(screen.getByText('Missing spawn point')).toBeInTheDocument();
+      expect(screen.getByText('Missing win condition')).toBeInTheDocument();
+      expect(screen.getByText(/You can still save the level, but it may not be playable without these elements/)).toBeInTheDocument();
+    });
+
+    it('should not display validation warnings when none are present', () => {
+      const mockLevel = {
+        id: 'level-1',
+        gameId: 'game-1',
+        title: 'Test Level',
+        width: 800,
+        height: 600,
+        gridSize: 64,
+        tileGrid: makeTileGrid(12, 9),
+        platforms: [],
+        cameraMode: 'free' as const,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isShared: false,
+        sharingScope: 'private' as const,
+        isTemplate: false,
+      };
+
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...baseStore,
+        currentLevel: mockLevel,
+        levelValidationWarnings: { missingSpawn: false, missingWin: false },
+      });
+
+      render(<PropertiesPanel />);
+
+      expect(screen.queryByText('Validation')).not.toBeInTheDocument();
+      expect(screen.queryByText('Missing spawn point')).not.toBeInTheDocument();
+      expect(screen.queryByText('Missing win condition')).not.toBeInTheDocument();
+    });
+
+    it('should not display validation warnings when no level is loaded', () => {
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...baseStore,
+        currentLevel: null,
+        levelValidationWarnings: { missingSpawn: true, missingWin: true },
+      });
+
+      render(<PropertiesPanel />);
+
+      expect(screen.queryByText('Validation')).not.toBeInTheDocument();
+    });
   });
 });

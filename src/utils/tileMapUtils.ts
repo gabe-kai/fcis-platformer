@@ -15,14 +15,16 @@ export function getTileAtCell(
 }
 
 /**
- * Sets a tile at a specific grid cell (replaces existing tile if any)
+ * Sets a tile at a specific grid cell (replaces existing tile if any).
+ * @param layer - If provided, used for the new cell; otherwise keeps existing layer or 'primary'.
  */
 export function setTileAtCell(
   tileGrid: TileCell[][],
   tileId: string,
   cellX: number,
   cellY: number,
-  passable: boolean = false
+  passable: boolean = false,
+  layer?: 'background' | 'primary' | 'foreground'
 ): TileCell[][] {
   logger.debug('Setting tile at cell', {
     component: 'TileMapUtils',
@@ -36,15 +38,17 @@ export function setTileAtCell(
   if (cellX < 0 || cellX >= tileGrid[cellY].length) return tileGrid;
 
   const existingCell = tileGrid[cellY]?.[cellX];
+  const effectiveLayer = layer ?? existingCell?.layer ?? 'primary';
   const nextGrid = tileGrid.map((row, y) =>
     y === cellY ? row.map((cell, x) =>
       x === cellX
         ? {
             passable,
             tileId,
-            layer: existingCell?.layer || 'primary',
+            layer: effectiveLayer,
             displayName: existingCell?.displayName,
             properties: existingCell?.properties,
+            fillPatternId: existingCell?.fillPatternId,
           }
         : cell
     ) : row
@@ -79,6 +83,7 @@ export function removeTileAtCell(
           passable: true,
           layer: existingCell?.layer || 'primary',
           properties: existingCell?.properties,
+          fillPatternId: existingCell?.fillPatternId,
         };
       }
       return cell;
@@ -182,3 +187,26 @@ export function getGroupId(entries: Array<{ cellX: number; cellY: number; tileId
 
 // Note: getTileCells removed - all tiles are now 1×1 cells
 // Multi-tile visuals are groups of standard 1×1 tiles
+
+/**
+ * Sets a fill pattern on a specific grid cell
+ */
+export function setFillPatternAtCell(
+  tileGrid: TileCell[][],
+  fillPatternId: string | null,
+  cellX: number,
+  cellY: number
+): TileCell[][] {
+  if (cellY < 0 || cellY >= tileGrid.length) return tileGrid;
+  if (cellX < 0 || cellX >= tileGrid[cellY].length) return tileGrid;
+
+  return tileGrid.map((row, y) =>
+    y === cellY
+      ? row.map((cell, x) =>
+          x === cellX
+            ? { ...cell, fillPatternId: fillPatternId || undefined }
+            : cell
+        )
+      : row
+  );
+}

@@ -133,6 +133,35 @@
   border-left-color: rgba(255, 255, 255, 0.2);
 }
 
+.undo-redo-buttons {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.undo-button,
+.redo-button {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  background-color: #34495e;
+  color: #ecf0f1;
+  border: 1px solid #34495e;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.undo-button:hover:not(:disabled),
+.redo-button:hover:not(:disabled) {
+  background-color: #3d566e;
+}
+
+.undo-button:disabled,
+.redo-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .last-saved-text {
   font-size: 0.8rem;
   color: #95a5a6;
@@ -191,10 +220,15 @@
 }
 
 .editor-sidebar {
+  flex: 0 0 260px;
   display: flex;
   flex-direction: column;
   background-color: #2c3e50;
   overflow-y: auto;
+}
+
+.editor-sidebar-right {
+  flex: 0 0 280px;
 }
 
 .editor-sidebar-left {

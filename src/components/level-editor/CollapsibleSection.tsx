@@ -1,10 +1,12 @@
-import { useState, ReactNode } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import './CollapsibleSection.css';
 
 interface CollapsibleSectionProps {
   title: string;
   children: ReactNode;
   defaultExpanded?: boolean;
+  /** When true, automatically expands the section (e.g., when selection changes) */
+  autoExpand?: boolean;
   className?: string;
 }
 
@@ -17,9 +19,17 @@ export function CollapsibleSection({
   title,
   children,
   defaultExpanded = true,
+  autoExpand = false,
   className = '',
 }: CollapsibleSectionProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
+  // Auto-expand when autoExpand becomes true
+  useEffect(() => {
+    if (autoExpand && !isExpanded) {
+      setIsExpanded(true);
+    }
+  }, [autoExpand]);
 
   return (
     <div className={`collapsible-section ${className}`}>

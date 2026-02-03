@@ -48,6 +48,8 @@ describe('LevelCanvas', () => {
   const mockSetZoom = vi.fn();
   const mockSetViewportState = vi.fn();
   const mockSetTargetScrollPosition = vi.fn();
+  const mockSetPendingTileGroupDelete = vi.fn();
+  const mockSetPendingPlaceOverwrite = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -67,6 +69,8 @@ describe('LevelCanvas', () => {
       selectedTileEntry: null,
       selectedTileGroup: null,
       selectedLayer: 'primary',
+      pendingTileGroupDelete: null,
+      pendingPlaceOverwrite: null,
       setSelectedTool: mockSetSelectedTool,
       setSelectedTileEntry: mockSetSelectedTileEntry,
       setSelectedTileGroup: mockSetSelectedTileGroup,
@@ -76,6 +80,8 @@ describe('LevelCanvas', () => {
       setZoom: mockSetZoom,
       setViewportState: mockSetViewportState,
       setTargetScrollPosition: mockSetTargetScrollPosition,
+      setPendingTileGroupDelete: mockSetPendingTileGroupDelete,
+      setPendingPlaceOverwrite: mockSetPendingPlaceOverwrite,
       placePlatform: mockPlacePlatform,
     });
   });
@@ -112,6 +118,8 @@ describe('LevelCanvas', () => {
       selectedTileEntry: null,
       selectedTileGroup: null,
       selectedLayer: 'primary',
+      pendingTileGroupDelete: null,
+      pendingPlaceOverwrite: null,
       setSelectedTool: mockSetSelectedTool,
       setSelectedTileEntry: mockSetSelectedTileEntry,
       setSelectedTileGroup: mockSetSelectedTileGroup,
@@ -121,6 +129,8 @@ describe('LevelCanvas', () => {
       setZoom: mockSetZoom,
       setViewportState: mockSetViewportState,
       setTargetScrollPosition: mockSetTargetScrollPosition,
+      setPendingTileGroupDelete: mockSetPendingTileGroupDelete,
+      setPendingPlaceOverwrite: mockSetPendingPlaceOverwrite,
       placePlatform: mockPlacePlatform,
     });
 
@@ -151,6 +161,8 @@ describe('LevelCanvas', () => {
       selectedTileEntry: null,
       selectedTileGroup: null,
       selectedLayer: 'primary',
+      pendingTileGroupDelete: null,
+      pendingPlaceOverwrite: null,
       setSelectedTool: mockSetSelectedTool,
       setSelectedTileEntry: mockSetSelectedTileEntry,
       setSelectedTileGroup: mockSetSelectedTileGroup,
@@ -160,6 +172,8 @@ describe('LevelCanvas', () => {
       setZoom: mockSetZoom,
       setViewportState: mockSetViewportState,
       setTargetScrollPosition: mockSetTargetScrollPosition,
+      setPendingTileGroupDelete: mockSetPendingTileGroupDelete,
+      setPendingPlaceOverwrite: mockSetPendingPlaceOverwrite,
       placePlatform: mockPlacePlatform,
     });
 

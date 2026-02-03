@@ -8,6 +8,8 @@ import { ToolPalette } from './ToolPalette';
 import { TileLibrary } from './TileLibrary';
 import { PropertiesPanel } from './PropertiesPanel';
 import { BackgroundImagePlacementModal } from './BackgroundImagePlacementModal';
+import { ConfirmDeleteTileGroupModal } from './ConfirmDeleteTileGroupModal';
+import { ConfirmPlaceOverwriteModal } from './ConfirmPlaceOverwriteModal';
 import './LevelEditor.css';
 
 /**
@@ -28,6 +30,19 @@ export function LevelEditor() {
     setViewMode,
     pendingBackgroundImageDataUrl,
     setPendingBackgroundImageDataUrl,
+    pendingTileGroupDelete,
+    setPendingTileGroupDelete,
+    pendingPlaceOverwrite,
+    setPendingPlaceOverwrite,
+    removeTileAtCell,
+    setTileAtCell,
+    setSelectedTileEntry,
+    setSelectedTileGroup,
+    placePatternAt,
+    undo,
+    redo,
+    undoStack,
+    redoStack,
   } = useEditorStore();
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -125,6 +140,67 @@ export function LevelEditor() {
     }, 2000);
     return () => clearTimeout(id);
   }, [currentLevel]);
+
+  // Undo/Redo keyboard shortcuts (Ctrl+Z / Cmd+Z, Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!currentLevel) return;
+      const t = e.target as Node;
+      if (t && (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || (t instanceof HTMLElement && t.isContentEditable))) return;
+      const mod = e.ctrlKey || e.metaKey;
+      // Undo / Redo
+      if (e.key === 'z' && mod) {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+        return;
+      }
+      if (e.key === 'y' && mod) {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
+      // Copy / Cut / Paste for selected tile groups
+      if (mod && (e.key === 'c' || e.key === 'x' || e.key === 'v')) {
+        e.preventDefault();
+        const {
+          copySelectionToClipboard,
+          cutSelectionToClipboard,
+          pasteClipboardAt,
+          hoverCell,
+        } = useEditorStore.getState();
+
+        if (e.key === 'c') {
+          copySelectionToClipboard();
+        } else if (e.key === 'x') {
+          cutSelectionToClipboard();
+        } else if (e.key === 'v') {
+          if (hoverCell) {
+            pasteClipboardAt(hoverCell.cellX, hoverCell.cellY);
+          }
+        }
+      }
+      
+      // Delete key: delete selected platform
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const { selectedPlatform, deletePlatform, setSelectedPlatform } = useEditorStore.getState();
+        if (selectedPlatform) {
+          e.preventDefault();
+          if (confirm('Delete this platform?')) {
+            deletePlatform(selectedPlatform.id);
+            setSelectedPlatform(null);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentLevel, undo, redo]);
 
   const handleSave = async () => {
     if (!currentLevel || isSaving) return;
@@ -265,6 +341,26 @@ export function LevelEditor() {
               Texture
             </button>
           </div>
+          <div className="undo-redo-buttons" role="group" aria-label="Undo and redo">
+            <button
+              type="button"
+              className="undo-button"
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              title="Undo (Ctrl+Z)"
+            >
+              Undo
+            </button>
+            <button
+              type="button"
+              className="redo-button"
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+            >
+              Redo
+            </button>
+          </div>
           <span className="last-saved-text" title={lastSavedAt ? new Date(lastSavedAt).toLocaleString() : undefined}>
             {lastSavedAt
               ? `Last saved: ${new Date(lastSavedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
@@ -335,6 +431,62 @@ export function LevelEditor() {
               component: 'LevelEditor',
               operation: 'backgroundImagePlacement',
             });
+          }}
+        />
+      )}
+      {pendingTileGroupDelete && pendingTileGroupDelete.length > 0 && (
+        <ConfirmDeleteTileGroupModal
+          isOpen={true}
+          tileCount={pendingTileGroupDelete.length}
+          onConfirm={() => {
+            for (const t of pendingTileGroupDelete) {
+              removeTileAtCell(t.cellX, t.cellY);
+            }
+            setPendingTileGroupDelete(null);
+            setSelectedTileEntry(null);
+            setSelectedTileGroup(null);
+            logger.info('Tile group deleted (confirmed)', {
+              component: 'LevelEditor',
+              operation: 'deleteTileGroup',
+              count: pendingTileGroupDelete.length,
+            });
+          }}
+          onCancel={() => {
+            setPendingTileGroupDelete(null);
+          }}
+        />
+      )}
+      {pendingPlaceOverwrite && (
+        <ConfirmPlaceOverwriteModal
+          isOpen={true}
+          tileCount={pendingPlaceOverwrite.overlappingCells.length}
+          onConfirm={() => {
+            if (pendingPlaceOverwrite.pattern && pendingPlaceOverwrite.patternOriginX != null && pendingPlaceOverwrite.patternOriginY != null) {
+              placePatternAt(pendingPlaceOverwrite.patternOriginX, pendingPlaceOverwrite.patternOriginY, pendingPlaceOverwrite.pattern);
+              setPendingPlaceOverwrite(null);
+              logger.info('Pattern place overwrite confirmed', {
+                component: 'LevelEditor',
+                operation: 'placeOverwrite',
+                patternId: pendingPlaceOverwrite.pattern.id,
+                cellCount: pendingPlaceOverwrite.pattern.cells.length,
+              });
+            } else {
+              const { minCellX, maxCellX, minCellY, maxCellY, tileId, passable } = pendingPlaceOverwrite;
+              for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+                for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
+                  setTileAtCell(tileId, cellX, cellY, passable);
+                }
+              }
+              setPendingPlaceOverwrite(null);
+              logger.info('Place overwrite confirmed', {
+                component: 'LevelEditor',
+                operation: 'placeOverwrite',
+                tileCount: (maxCellX - minCellX + 1) * (maxCellY - minCellY + 1),
+              });
+            }
+          }}
+          onCancel={() => {
+            setPendingPlaceOverwrite(null);
           }}
         />
       )}

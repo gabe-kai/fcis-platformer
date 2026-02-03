@@ -35,6 +35,43 @@
   /* Canvas layered over scroll container */
 }
 
+.canvas-context-menu {
+  background: #2c2c3e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
+  min-width: 120px;
+  z-index: 1000;
+}
+
+.canvas-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 8px 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.canvas-context-menu button:hover {
+  background: #3a3a4e;
+}
+
+.canvas-context-menu button:active {
+  background: #4a4a5e;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: #444;
+  margin: 4px 0;
+}
+
 .navigation-hint {
   position: absolute;
   bottom: 12px;

@@ -1,15 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
 import { logger } from '@/utils/logger';
-import type { PlatformType } from '@/models/Platform';
-import type { CameraMode } from '@/types';
+import { type PlatformType, createPlatform } from '@/models/Platform';
+import type { CameraMode, TilePattern } from '@/types';
 import { getTileDefinition, tileRegistry } from '@/models/Tile';
+import { storageService } from '@/services/storageService';
 import type { TileDefinition } from '@/models/Tile';
 import { findConnectedTiles } from '@/utils/tileGroupingUtils';
 import { getGroupId, getTileAtCell } from '@/utils/tileMapUtils';
 import { CollapsibleSection } from './CollapsibleSection';
 import { LevelPreview } from './LevelPreview';
 import { TileUploadModal } from './TileUploadModal';
+import { MovingPlatformPathEditor } from './MovingPlatformPathEditor';
 import './PropertiesPanel.css';
 
 /**
@@ -23,8 +25,11 @@ export function PropertiesPanel() {
     selectedPlatform,
     selectedTileEntry,
     selectedTileGroup,
+    selectedTileGroups,
     updatePlatformProperties,
     deletePlatform,
+    placePlatform,
+    setSelectedPlatform,
     updateLevel,
     updateLevelDimensions,
     gridEnabled,
@@ -39,8 +44,11 @@ export function PropertiesPanel() {
     setZoom,
     viewportState,
     setPendingBackgroundImageDataUrl,
+    levelValidationWarnings,
+    cleanupOrphanedPlatforms,
   } = useEditorStore();
   const [showTileUploadModal, setShowTileUploadModal] = useState(false);
+  const [showPathEditor, setShowPathEditor] = useState(false);
   const [editingTileName, setEditingTileName] = useState(false);
   const [editingGroupName, setEditingGroupName] = useState(false);
   const [tileNameForm, setTileNameForm] = useState('');
@@ -130,7 +138,7 @@ export function PropertiesPanel() {
   const handleSave = () => {
     if (!selectedPlatform) return;
 
-    updatePlatformProperties(selectedPlatform.id, {
+    const updates: Parameters<typeof updatePlatformProperties>[1] = {
       bounds: {
         x: formData.x,
         y: formData.y,
@@ -138,7 +146,21 @@ export function PropertiesPanel() {
         height: formData.height,
       },
       type: formData.type,
-    });
+    };
+
+    if (formData.type === 'moving' && (!selectedPlatform.movementPath || selectedPlatform.movementPath.length === 0) && currentLevel) {
+      const gridSize = currentLevel.gridSize || 64;
+      const cx = formData.x + formData.width / 2;
+      const cy = formData.y + formData.height / 2;
+      const defaultDistance = 3 * gridSize;
+      updates.movementPath = [
+        { x: cx, y: cy },
+        { x: cx + defaultDistance, y: cy },
+      ];
+      updates.movementSpeed = 100;
+    }
+
+    updatePlatformProperties(selectedPlatform.id, updates);
 
     logger.info('Platform properties updated', {
       component: 'PropertiesPanel',
@@ -276,7 +298,8 @@ export function PropertiesPanel() {
       {/* Selected Object Details Section - Moved before Level Details */}
       <CollapsibleSection
         title="Selected Object Details"
-        defaultExpanded={selectedPlatform !== null || selectedTileEntry !== null || (selectedTileGroup !== null && selectedTileGroup.length > 0)}
+        defaultExpanded={true}
+        autoExpand={selectedPlatform !== null || selectedTileEntry !== null || (selectedTileGroup !== null && selectedTileGroup.length > 0)}
       >
         {selectedTileEntry && currentLevel ? (
           // Show selected tile and optionally tile group
@@ -288,7 +311,7 @@ export function PropertiesPanel() {
             const displayName = cell?.displayName ?? tileDef?.name ?? 'Unknown';
             const groupId = selectedTileGroup && selectedTileGroup.length > 0 ? getGroupId(selectedTileGroup) : '';
             const groupDisplayName = groupId && currentLevel.groupDisplayNames?.[groupId];
-            const isGroup = selectedTileGroup != null && selectedTileGroup.length > 1;
+            const isGroup = (selectedTileGroup != null && selectedTileGroup.length > 1) || selectedTileGroups.length > 1;
 
             return (
               <div className="selected-tile-details">
@@ -394,10 +417,12 @@ export function PropertiesPanel() {
                   </table>
                 </div>
 
-                {/* Tile group subsection (only when part of a multi-tile group) */}
-                {isGroup && selectedTileGroup && (
+                {/* Tile group subsection (single tile or multi-tile group - for platform creation) */}
+                {((selectedTileGroup && selectedTileGroup.length > 0) || selectedTileGroups.length > 0) && (
                   <div className="details-subsection">
-                    <h4 className="details-subsection-title">Tile group</h4>
+                    <h4 className="details-subsection-title">
+                      {isGroup ? `Tile group${selectedTileGroups.length > 1 ? 's' : ''}` : 'Platform from tile'}
+                    </h4>
                     <table className="properties-table">
                       <tbody>
                         <tr>
@@ -441,27 +466,183 @@ export function PropertiesPanel() {
                               <div
                                 className="property-value editable-display"
                                 onClick={() => {
-                                  setGroupNameForm(groupDisplayName ?? `Group of ${selectedTileGroup.length} tiles`);
+                                  const totalTiles = selectedTileGroups.flatMap((g) => g).length;
+                                  setGroupNameForm(groupDisplayName ?? `Group of ${totalTiles} tiles`);
                                   setEditingGroupName(true);
                                 }}
                                 title="Click to edit"
                               >
-                                {groupDisplayName || `${selectedTileGroup.length} connected tiles`}
+                                {groupDisplayName || (selectedTileGroups.length > 1
+                                  ? `${selectedTileGroups.length} groups, ${selectedTileGroups.flatMap((g) => g).length} tiles`
+                                  : `${selectedTileGroup?.length ?? 0} connected tiles`)}
                               </div>
                             )}
                           </td>
                         </tr>
                         <tr>
                           <th scope="row">Cells</th>
-                          <td>{selectedTileGroup.length} tiles</td>
+                          <td>{selectedTileGroups.flatMap((g) => g).length} tiles{selectedTileGroups.length > 1 ? ` (${selectedTileGroups.length} groups)` : ''}</td>
                         </tr>
                         <tr>
                           <td colSpan={2} className="properties-table-actions">
                             <button
                               type="button"
+                              className="save-pattern-button"
+                              onClick={async () => {
+                                const allCells = selectedTileGroups.flatMap((g) => g);
+                                if (allCells.length === 0 || !currentLevel?.tileGrid) return;
+                                const grid = currentLevel.tileGrid;
+                                const minX = Math.min(...allCells.map((t) => t.cellX));
+                                const minY = Math.min(...allCells.map((t) => t.cellY));
+                                const defaultName = `Pattern ${new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`;
+                                const name = window.prompt('Name for this pattern', defaultName)?.trim() || defaultName;
+                                const cells = selectedTileGroup.map((t) => {
+                                  const cell = grid[t.cellY]?.[t.cellX];
+                                  return {
+                                    relX: t.cellX - minX,
+                                    relY: t.cellY - minY,
+                                    tileId: t.tileId,
+                                    passable: t.passable,
+                                    layer: (cell?.layer ?? 'primary') as 'background' | 'primary' | 'foreground',
+                                  };
+                                });
+                                const pattern: TilePattern = {
+                                  id: `pattern_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+                                  name,
+                                  cells,
+                                  createdAt: Date.now(),
+                                };
+                                await storageService.savePattern(pattern);
+                                window.dispatchEvent(new CustomEvent('tilePatternsChanged'));
+                                logger.info('Pattern saved to library', {
+                                  component: 'PropertiesPanel',
+                                  operation: 'savePattern',
+                                  patternId: pattern.id,
+                                  cellCount: cells.length,
+                                });
+                              }}
+                              title="Save this tile group as a reusable pattern in the Library"
+                            >
+                              Save to Library
+                            </button>
+                            {/* Create Moving Platform - for any tile(s), including a single tile */}
+                            {(() => {
+                              const allCells = selectedTileGroups.flatMap((g) => g);
+                              const hasMovingPlatformTiles = allCells.some(
+                                (t) => t.tileId === 'platform-moving-horizontal' || t.tileId === 'platform-moving-vertical'
+                              );
+                              const movementType = allCells.some(t => t.tileId === 'platform-moving-horizontal')
+                                ? 'horizontal'
+                                : allCells.some(t => t.tileId === 'platform-moving-vertical')
+                                ? 'vertical'
+                                : 'horizontal';
+                              
+                              return (
+                                <button
+                                  type="button"
+                                  className="create-moving-platform-button"
+                                  onClick={() => {
+                                    if (allCells.length === 0 || !currentLevel) return;
+                                    const gridSize = currentLevel.gridSize || 64;
+                                    const minCellX = Math.min(...allCells.map((t) => t.cellX));
+                                    const maxCellX = Math.max(...allCells.map((t) => t.cellX));
+                                    const minCellY = Math.min(...allCells.map((t) => t.cellY));
+                                    const maxCellY = Math.max(...allCells.map((t) => t.cellY));
+                                    
+                                    const platform = createPlatform({
+                                      levelId: currentLevel.id,
+                                      type: 'moving',
+                                      bounds: {
+                                        x: minCellX * gridSize,
+                                        y: minCellY * gridSize,
+                                        width: (maxCellX - minCellX + 1) * gridSize,
+                                        height: (maxCellY - minCellY + 1) * gridSize,
+                                      },
+                                    });
+                                    
+                                    const centerX = platform.bounds.x + platform.bounds.width / 2;
+                                    const centerY = platform.bounds.y + platform.bounds.height / 2;
+                                    const defaultDistance = 3 * gridSize;
+                                    
+                                    if (movementType === 'horizontal') {
+                                      platform.movementPath = [
+                                        { x: centerX, y: centerY },
+                                        { x: centerX + defaultDistance, y: centerY },
+                                      ];
+                                    } else {
+                                      platform.movementPath = [
+                                        { x: centerX, y: centerY },
+                                        { x: centerX, y: centerY + defaultDistance },
+                                      ];
+                                    }
+                                    platform.movementSpeed = 100;
+                                    
+                                    placePlatform(platform);
+                                    setSelectedPlatform(platform);
+                                    setSelectedTileEntry(null);
+                                    setSelectedTileGroup(null);
+                                    setShowPathEditor(true);
+                                    
+                                    logger.info('Moving platform created from tile selection', {
+                                      component: 'PropertiesPanel',
+                                      operation: 'createMovingPlatformFromGroup',
+                                      platformId: platform.id,
+                                      tileCount: allCells.length,
+                                      movementType,
+                                    });
+                                  }}
+                                  title={hasMovingPlatformTiles
+                                    ? "Create a moving platform with path editor - the tiles indicate this should move!"
+                                    : "Create a moving platform from this tile (opens path editor)"}
+                                >
+                                  Create Moving Platform
+                                </button>
+                              );
+                            })()}
+                            <button
+                              type="button"
+                              className="create-platform-button"
+                              onClick={() => {
+                                const allCells = selectedTileGroups.flatMap((g) => g);
+                                if (allCells.length === 0 || !currentLevel) return;
+                                const gridSize = currentLevel.gridSize || 64;
+                                // Calculate bounding box in world coordinates
+                                const minCellX = Math.min(...allCells.map((t) => t.cellX));
+                                const maxCellX = Math.max(...allCells.map((t) => t.cellX));
+                                const minCellY = Math.min(...allCells.map((t) => t.cellY));
+                                const maxCellY = Math.max(...allCells.map((t) => t.cellY));
+                                // Convert to world coordinates (bottom-left origin)
+                                const platform = createPlatform({
+                                  levelId: currentLevel.id,
+                                  type: 'solid',
+                                  bounds: {
+                                    x: minCellX * gridSize,
+                                    y: minCellY * gridSize,
+                                    width: (maxCellX - minCellX + 1) * gridSize,
+                                    height: (maxCellY - minCellY + 1) * gridSize,
+                                  },
+                                });
+                                placePlatform(platform);
+                                setSelectedPlatform(platform);
+                                setSelectedTileEntry(null);
+                                setSelectedTileGroup(null);
+                                logger.info('Platform created from tile group', {
+                                  component: 'PropertiesPanel',
+                                  operation: 'createPlatformFromGroup',
+                                  platformId: platform.id,
+                                  tileCount: allCells.length,
+                                });
+                              }}
+                              title="Create a Platform entity from this tile group (allows setting type, movement path, etc.)"
+                            >
+                              Create Platform
+                            </button>
+                            <button
+                              type="button"
                               className="delete-button"
                               onClick={() => {
-                                for (const t of selectedTileGroup) {
+                                const allCells = selectedTileGroups.flatMap((g) => g);
+                                for (const t of allCells) {
                                   removeTileAtCell(t.cellX, t.cellY);
                                 }
                                 setSelectedTileEntry(null);
@@ -469,12 +650,12 @@ export function PropertiesPanel() {
                                 logger.info('Tile group deleted from properties panel', {
                                   component: 'PropertiesPanel',
                                   operation: 'deleteTileGroup',
-                                  count: selectedTileGroup.length,
+                                  count: allCells.length,
                                 });
                               }}
-                              title="Remove entire group. Or use Delete tool + Shift+click on canvas."
+                              title="Remove all selected groups. Or use Delete tool + Shift+click on canvas."
                             >
-                              Delete group ({selectedTileGroup.length} tiles)
+                              Delete {selectedTileGroups.length > 1 ? `${selectedTileGroups.length} groups` : 'group'} ({selectedTileGroups.flatMap((g) => g).length} tiles)
                             </button>
                           </td>
                         </tr>
@@ -564,6 +745,118 @@ export function PropertiesPanel() {
                 </select>
               </div>
 
+              {formData.type === 'moving' && (
+                <div className="moving-platform-properties">
+                  <h4 className="moving-platform-header">Movement Properties</h4>
+                  
+                  <div className="form-group">
+                    <label htmlFor="movement-speed">Speed (px/sec)</label>
+                    <input
+                      id="movement-speed"
+                      type="number"
+                      value={selectedPlatform.movementSpeed || 100}
+                      onChange={(e) => {
+                        updatePlatformProperties(selectedPlatform.id, {
+                          movementSpeed: Math.max(10, Number(e.target.value)),
+                        });
+                      }}
+                      min={10}
+                      max={1000}
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Path Points</label>
+                    <div className="path-points-editor">
+                      {selectedPlatform.movementPath && selectedPlatform.movementPath.length > 0 ? (
+                        <>
+                          {selectedPlatform.movementPath.map((point, idx) => (
+                            <div key={idx} className="path-point-row">
+                              <span className="path-point-label">Point {idx + 1}:</span>
+                              <input
+                                type="number"
+                                value={Math.round(point.x)}
+                                onChange={(e) => {
+                                  const newPath = [...selectedPlatform.movementPath!];
+                                  newPath[idx] = { ...newPath[idx], x: Number(e.target.value) };
+                                  updatePlatformProperties(selectedPlatform.id, { movementPath: newPath });
+                                }}
+                                className="path-point-input"
+                                title="X position"
+                              />
+                              <span className="path-point-separator">,</span>
+                              <input
+                                type="number"
+                                value={Math.round(point.y)}
+                                onChange={(e) => {
+                                  const newPath = [...selectedPlatform.movementPath!];
+                                  newPath[idx] = { ...newPath[idx], y: Number(e.target.value) };
+                                  updatePlatformProperties(selectedPlatform.id, { movementPath: newPath });
+                                }}
+                                className="path-point-input"
+                                title="Y position"
+                              />
+                              {selectedPlatform.movementPath!.length > 2 && (
+                                <button
+                                  type="button"
+                                  className="path-point-delete"
+                                  onClick={() => {
+                                    const newPath = selectedPlatform.movementPath!.filter((_, i) => i !== idx);
+                                    updatePlatformProperties(selectedPlatform.id, { movementPath: newPath });
+                                  }}
+                                  title="Remove this point"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            className="add-path-point-button"
+                            onClick={() => {
+                              const path = selectedPlatform.movementPath!;
+                              const lastPoint = path[path.length - 1];
+                              const secondLastPoint = path.length > 1 ? path[path.length - 2] : lastPoint;
+                              // Extrapolate new point from last two points
+                              const dx = lastPoint.x - secondLastPoint.x;
+                              const dy = lastPoint.y - secondLastPoint.y;
+                              const newPoint = {
+                                x: lastPoint.x + (dx || 64),
+                                y: lastPoint.y + (dy || 0),
+                              };
+                              updatePlatformProperties(selectedPlatform.id, {
+                                movementPath: [...path, newPoint],
+                              });
+                            }}
+                          >
+                            + Add Point
+                          </button>
+                        </>
+                      ) : (
+                        <div className="path-points-empty">
+                          No path defined. Click "Create Path" to add waypoints.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="path-actions">
+                    <button
+                      type="button"
+                      className="edit-path-button"
+                      onClick={() => setShowPathEditor(true)}
+                    >
+                      {selectedPlatform.movementPath?.length ? 'Edit Path Visually' : 'Create Path'}
+                    </button>
+                  </div>
+                  
+                  <p className="moving-platform-hint">
+                    Tip: Drag path points directly on the canvas to adjust positions visually.
+                  </p>
+                </div>
+              )}
+
               <div className="form-actions">
                 <button className="save-button" onClick={handleSave}>
                   Save
@@ -577,26 +870,120 @@ export function PropertiesPanel() {
               </div>
             </div>
           ) : (
-            <table className="properties-table">
-              <tbody>
-                <tr>
-                  <th scope="row">Position</th>
-                  <td>({formData.x}, {formData.y})</td>
-                </tr>
-                <tr>
-                  <th scope="row">Size</th>
-                  <td>{formData.width} × {formData.height}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Type</th>
-                  <td>{formData.type}</td>
-                </tr>
-                <tr>
-                  <th scope="row">Platform ID</th>
-                  <td className="property-id">{selectedPlatform.id}</td>
-                </tr>
-              </tbody>
-            </table>
+            <>
+              <div className="details-subsection">
+                <h4 className="details-subsection-title">Platform</h4>
+              </div>
+              <table className="properties-table">
+                <tbody>
+                  <tr>
+                    <th scope="row">Position</th>
+                    <td>({formData.x}, {formData.y})</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Size</th>
+                    <td>{formData.width} × {formData.height}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Type</th>
+                    <td>{formData.type}</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Platform ID</th>
+                    <td className="property-id">{selectedPlatform.id}</td>
+                  </tr>
+                  {selectedPlatform.type === 'moving' && (
+                    <>
+                      <tr>
+                        <th scope="row">Speed</th>
+                        <td>
+                          <input
+                            type="number"
+                            value={selectedPlatform.movementSpeed || 100}
+                            onChange={(e) => {
+                              updatePlatformProperties(selectedPlatform.id, {
+                                movementSpeed: Math.max(10, Number(e.target.value)),
+                              });
+                            }}
+                            min={10}
+                            max={1000}
+                            style={{ width: '80px', marginRight: '4px' }}
+                            className="editable-input"
+                          />
+                          px/s
+                        </td>
+                      </tr>
+                      <tr>
+                        <th scope="row">Path</th>
+                        <td>
+                          {selectedPlatform.movementPath && selectedPlatform.movementPath.length > 0 ? (
+                            <div className="compact-path-info">
+                              <div className="path-point-summary">
+                                {selectedPlatform.movementPath.map((p, i) => (
+                                  <span key={i} className="path-point-badge">
+                                    {i + 1}: ({Math.round(p.x)}, {Math.round(p.y)})
+                                  </span>
+                                ))}
+                              </div>
+                              <button
+                                className="edit-path-button compact"
+                                onClick={() => setShowPathEditor(true)}
+                              >
+                                Edit Path
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              className="edit-path-button"
+                              onClick={() => setShowPathEditor(true)}
+                            >
+                              Create Path
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td colSpan={2} className="moving-platform-tip">
+                          <em>Drag path points on canvas to move them</em>
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+              <div className="platform-actions-readonly">
+                {selectedPlatform.type !== 'moving' && currentLevel && (
+                  <button
+                    className="make-moving-platform-button"
+                    onClick={() => {
+                      const gridSize = currentLevel.gridSize || 64;
+                      const cx = selectedPlatform.bounds.x + selectedPlatform.bounds.width / 2;
+                      const cy = selectedPlatform.bounds.y + selectedPlatform.bounds.height / 2;
+                      const defaultDistance = 3 * gridSize;
+                      updatePlatformProperties(selectedPlatform.id, {
+                        type: 'moving',
+                        movementPath: [
+                          { x: cx, y: cy },
+                          { x: cx + defaultDistance, y: cy },
+                        ],
+                        movementSpeed: 100,
+                      });
+                      setShowPathEditor(true);
+                    }}
+                    title="Convert this platform to a moving platform and open the path editor"
+                  >
+                    Make Moving Platform
+                  </button>
+                )}
+                <button
+                  className="delete-platform-button"
+                  onClick={handleDelete}
+                  title="Delete this platform (removes the movement path and entity)"
+                >
+                  Delete Platform
+                </button>
+              </div>
+            </>
           )
         ) : (
           <div className="properties-empty">
@@ -616,6 +1003,30 @@ export function PropertiesPanel() {
             setShowTileUploadModal(false);
             window.dispatchEvent(new CustomEvent('userTilesChanged'));
           }}
+        />
+      )}
+
+      {showPathEditor && selectedPlatform && currentLevel && (
+        <MovingPlatformPathEditor
+          isOpen={showPathEditor}
+          platform={selectedPlatform}
+          onClose={() => setShowPathEditor(false)}
+          onSave={(path, speed, pathType) => {
+            updatePlatformProperties(selectedPlatform.id, {
+              movementPath: path,
+              movementSpeed: speed,
+            });
+            setShowPathEditor(false);
+            logger.info('Moving platform path updated', {
+              component: 'PropertiesPanel',
+              operation: 'updatePath',
+              platformId: selectedPlatform.id,
+              pathType,
+              pointCount: path.length,
+              speed,
+            });
+          }}
+          gridSize={currentLevel.gridSize || 64}
         />
       )}
 
@@ -656,9 +1067,33 @@ export function PropertiesPanel() {
               )}
             </div>
 
+            {/* Level Validation Warnings */}
+            {(levelValidationWarnings.missingSpawn || levelValidationWarnings.missingWin) && (
+              <div className="detail-group validation-warnings">
+                <label>Validation</label>
+                <div className="validation-warnings-list">
+                  {levelValidationWarnings.missingSpawn && (
+                    <div className="validation-warning">
+                      <span className="validation-warning-icon">⚠</span>
+                      <span className="validation-warning-text">Missing spawn point</span>
+                    </div>
+                  )}
+                  {levelValidationWarnings.missingWin && (
+                    <div className="validation-warning">
+                      <span className="validation-warning-icon">⚠</span>
+                      <span className="validation-warning-text">Missing win condition</span>
+                    </div>
+                  )}
+                </div>
+                <p className="validation-warning-note">
+                  You can still save the level, but it may not be playable without these elements.
+                </p>
+              </div>
+            )}
+
             {/* Dimensions - Always in expanded/editable state */}
             <div className="detail-group">
-              <label>Dimensions</label>
+              <label>Dimensions (cells)</label>
               <div className="edit-inline">
                 <div className="dimension-inputs">
                   <input
@@ -680,7 +1115,6 @@ export function PropertiesPanel() {
                     className="editable-input dimension-input"
                     placeholder="Height"
                   />
-                  <span>cells</span>
                 </div>
                 <div className="edit-inline-actions">
                   <button className="save-inline-button" onClick={handleDimensionsSave} title="Save">
@@ -848,6 +1282,39 @@ export function PropertiesPanel() {
                     </tr>
                   </tbody>
                 </table>
+              </div>
+            </CollapsibleSection>
+
+            {/* Level Utilities Sub-section */}
+            <CollapsibleSection title="Utilities" defaultExpanded={false} className="utilities-subsection">
+              <div className="utilities-content">
+                <div className="utility-item">
+                  <button
+                    className="cleanup-button"
+                    onClick={() => {
+                      const count = cleanupOrphanedPlatforms();
+                      if (count > 0) {
+                        alert(`Removed ${count} orphaned platform${count > 1 ? 's' : ''} (platforms without tiles).`);
+                      } else {
+                        alert('No orphaned platforms found. All platforms have associated tiles.');
+                      }
+                    }}
+                    title="Remove platform entities that don't have any tiles at their location"
+                  >
+                    Clean Up Orphaned Platforms
+                  </button>
+                  <p className="utility-description">
+                    Removes moving platform paths and other platform entities that no longer have tiles at their location.
+                  </p>
+                </div>
+                {currentLevel.platforms.length > 0 && (
+                  <div className="utility-info">
+                    <span className="platform-count">{currentLevel.platforms.length} platform{currentLevel.platforms.length !== 1 ? 's' : ''}</span>
+                    <span className="moving-count">
+                      ({currentLevel.platforms.filter(p => p.type === 'moving').length} moving)
+                    </span>
+                  </div>
+                )}
               </div>
             </CollapsibleSection>
           </div>

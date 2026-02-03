@@ -1,5 +1,7 @@
 import { useEditorStore } from '@/stores/editorStore';
 import { logger } from '@/utils/logger';
+import { getAllTileDefinitions, type TileDefinition, TILE_TYPE_COLORS } from '@/models/Tile';
+import { CollapsibleSection } from './CollapsibleSection';
 import './ToolPalette.css';
 
 /**
@@ -9,7 +11,15 @@ import './ToolPalette.css';
  * Tools: Select, Platform, Delete
  */
 export function ToolPalette() {
-  const { selectedTool, setSelectedTool, selectedLayer, setSelectedLayer } = useEditorStore();
+  const { selectedTool, setSelectedTool, selectedLayer, setSelectedLayer, selectedTile, setSelectedTile } = useEditorStore();
+
+  const allTiles = getAllTileDefinitions();
+  const functionCategories: Record<string, TileDefinition[]> = {
+    Core: allTiles.filter((t) => t.type === 'spawn' || t.type === 'goal' || t.type === 'checkpoint'),
+    Platforms: allTiles.filter((t) => t.type === 'solid' || t.type === 'platform'),
+    Interactive: allTiles.filter((t) => t.type === 'bumper' || t.type === 'teleporter' || t.type === 'collectible'),
+    Hazards: allTiles.filter((t) => t.type === 'death'),
+  };
 
   const handleToolSelect = (tool: 'select' | 'platform' | 'delete') => {
     setSelectedTool(tool);
@@ -29,8 +39,46 @@ export function ToolPalette() {
     });
   };
 
+  const handleFunctionTileSelect = (tile: TileDefinition) => {
+    setSelectedTile(tile);
+    setSelectedTool('platform');
+    logger.info('Function tile selected', {
+      component: 'ToolPalette',
+      operation: 'selectFunctionTile',
+      tileId: tile.id,
+    });
+  };
+
   return (
     <div className="tool-palette">
+      <h3>Layer</h3>
+      <div className="layer-buttons">
+        <button
+          className={`layer-button ${selectedLayer === 'background' ? 'active' : ''}`}
+          onClick={() => handleLayerSelect('background')}
+          title="Background Layer"
+        >
+          <span className="layer-label">Background</span>
+          {selectedLayer === 'background' && <span className="layer-indicator">●</span>}
+        </button>
+        <button
+          className={`layer-button ${selectedLayer === 'primary' ? 'active' : ''}`}
+          onClick={() => handleLayerSelect('primary')}
+          title="Primary Layer (Physics)"
+        >
+          <span className="layer-label">Primary</span>
+          {selectedLayer === 'primary' && <span className="layer-indicator">●</span>}
+        </button>
+        <button
+          className={`layer-button ${selectedLayer === 'foreground' ? 'active' : ''}`}
+          onClick={() => handleLayerSelect('foreground')}
+          title="Foreground Layer"
+        >
+          <span className="layer-label">Foreground</span>
+          {selectedLayer === 'foreground' && <span className="layer-indicator">●</span>}
+        </button>
+      </div>
+
       <h3>Tools</h3>
       <div className="tool-buttons">
         <button
@@ -59,33 +107,31 @@ export function ToolPalette() {
         </button>
       </div>
 
-      <h3>Layer</h3>
-      <div className="layer-buttons">
-        <button
-          className={`layer-button ${selectedLayer === 'background' ? 'active' : ''}`}
-          onClick={() => handleLayerSelect('background')}
-          title="Background Layer"
-        >
-          <span className="layer-label">Background</span>
-          {selectedLayer === 'background' && <span className="layer-indicator">●</span>}
-        </button>
-        <button
-          className={`layer-button ${selectedLayer === 'primary' ? 'active' : ''}`}
-          onClick={() => handleLayerSelect('primary')}
-          title="Primary Layer (Physics)"
-        >
-          <span className="layer-label">Primary</span>
-          {selectedLayer === 'primary' && <span className="layer-indicator">●</span>}
-        </button>
-        <button
-          className={`layer-button ${selectedLayer === 'foreground' ? 'active' : ''}`}
-          onClick={() => handleLayerSelect('foreground')}
-          title="Foreground Layer"
-        >
-          <span className="layer-label">Foreground</span>
-          {selectedLayer === 'foreground' && <span className="layer-indicator">●</span>}
-        </button>
-      </div>
+      <CollapsibleSection title="Functions" defaultExpanded className="functions-section">
+        {Object.entries(functionCategories).map(([category, tiles]) =>
+          tiles.length > 0 ? (
+            <div key={category} className="functions-category">
+              <h4 className="functions-category-title">{category}</h4>
+              <div className="functions-tile-list">
+                {tiles.map((tile) => (
+                  <button
+                    key={tile.id}
+                    className={`functions-tile ${selectedTile?.id === tile.id ? 'active' : ''}`}
+                    onClick={() => handleFunctionTileSelect(tile)}
+                    title={tile.description}
+                  >
+                    <span
+                      className="functions-tile-swatch"
+                      style={{ backgroundColor: TILE_TYPE_COLORS[tile.type] }}
+                    />
+                    <span className="functions-tile-name">{tile.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null
+        )}
+      </CollapsibleSection>
     </div>
   );
 }

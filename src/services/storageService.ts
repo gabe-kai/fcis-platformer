@@ -1,8 +1,15 @@
 import { logger } from '@/utils/logger';
 import type { Game, Level, WorldMap, Graphic } from '@/models';
 import type { TileDefinition } from '@/models/Tile';
+import type { TilePattern } from '@/types';
 
-export type BackgroundImageEntry = { id: string; name: string; dataUrl: string; createdAt: number };
+export type BackgroundImageEntry = {
+  id: string;
+  name: string;
+  dataUrl: string;
+  createdAt: number;
+  description?: string;
+};
 
 /**
  * Storage service interface
@@ -42,6 +49,11 @@ export interface StorageService {
   saveBackgroundImage(entry: BackgroundImageEntry): Promise<void>;
   listBackgroundImages(): Promise<BackgroundImageEntry[]>;
   deleteBackgroundImage(id: string): Promise<void>;
+
+  // Tile patterns (Library > Patterns, saved from selection)
+  savePattern(pattern: TilePattern): Promise<void>;
+  listPatterns(): Promise<TilePattern[]>;
+  deletePattern(id: string): Promise<void>;
 }
 
 /**
@@ -492,6 +504,57 @@ class StorageServiceImpl implements StorageService {
       logger.error('Failed to delete background image', {
         component: 'StorageService',
         operation: 'deleteBackgroundImage',
+        id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  // Tile patterns (Library > Patterns)
+  private readonly TILE_PATTERNS_KEY = 'fcis_tile_patterns';
+
+  async savePattern(pattern: TilePattern): Promise<void> {
+    try {
+      const existing = localStorage.getItem(this.TILE_PATTERNS_KEY);
+      const map: Record<string, TilePattern> = existing ? JSON.parse(existing) : {};
+      map[pattern.id] = pattern;
+      localStorage.setItem(this.TILE_PATTERNS_KEY, JSON.stringify(map));
+    } catch (error) {
+      logger.error('Failed to save pattern', {
+        component: 'StorageService',
+        operation: 'savePattern',
+        id: pattern.id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async listPatterns(): Promise<TilePattern[]> {
+    try {
+      const existing = localStorage.getItem(this.TILE_PATTERNS_KEY);
+      if (!existing) return [];
+      const map: Record<string, TilePattern> = JSON.parse(existing);
+      return Object.values(map).sort((a, b) => b.createdAt - a.createdAt);
+    } catch (error) {
+      logger.error('Failed to list patterns', {
+        component: 'StorageService',
+        operation: 'listPatterns',
+      }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async deletePattern(id: string): Promise<void> {
+    try {
+      const existing = localStorage.getItem(this.TILE_PATTERNS_KEY);
+      if (!existing) return;
+      const map: Record<string, TilePattern> = JSON.parse(existing);
+      delete map[id];
+      localStorage.setItem(this.TILE_PATTERNS_KEY, JSON.stringify(map));
+    } catch (error) {
+      logger.error('Failed to delete pattern', {
+        component: 'StorageService',
+        operation: 'deletePattern',
         id,
       }, { error: error instanceof Error ? error.message : String(error) });
       throw error;

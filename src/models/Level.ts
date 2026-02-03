@@ -12,6 +12,8 @@ export interface TileCell {
   /** User-editable display name for this cell (overrides tile definition name in UI) */
   displayName?: string;
   properties?: Record<string, unknown>; // Tile-specific properties
+  /** Fill pattern ID (from Tile Patterns library) - rendered as background layer under texture */
+  fillPatternId?: string;
 }
 
 /**
