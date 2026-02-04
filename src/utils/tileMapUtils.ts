@@ -116,7 +116,7 @@ export function removeTilesInRange(
     if (y < minCellY || y > maxCellY) return row;
     return row.map((cell, x) => {
       if (x < minCellX || x > maxCellX) return cell;
-      return { passable: true };
+      return { passable: true, layer: 'primary' as const };
     });
   });
 

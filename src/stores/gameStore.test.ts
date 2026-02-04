@@ -7,6 +7,7 @@ describe('GameStore', () => {
     useGameStore.setState({
       currentGame: null,
       games: [],
+      gamesLoadError: null,
     });
   });
 

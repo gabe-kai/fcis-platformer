@@ -26,7 +26,8 @@ describe('ConfirmDeleteTileGroupModal', () => {
       />
     );
     expect(screen.getByRole('heading', { name: /delete tile group\?/i })).toBeInTheDocument();
-    expect(screen.getByText((_, el) => (el?.textContent ?? '').includes('This will remove') && (el?.textContent ?? '').includes('5') && (el?.textContent ?? '').includes('tiles from the map'))).toBeInTheDocument();
+    const paragraph = screen.getByText((_content, el) => el?.tagName === 'P' && (el?.textContent ?? '').includes('This will remove') && (el?.textContent ?? '').includes('5') && (el?.textContent ?? '').includes('tiles from the map'));
+    expect(paragraph).toBeInTheDocument();
   });
 
   it('uses singular "tile" when tileCount is 1', () => {
@@ -38,7 +39,8 @@ describe('ConfirmDeleteTileGroupModal', () => {
         onCancel={vi.fn()}
       />
     );
-    expect(screen.getByText((_, el) => (el?.textContent ?? '').includes('This will remove') && (el?.textContent ?? '').includes('1 tile') && (el?.textContent ?? '').includes('from the map'))).toBeInTheDocument();
+    const paragraph = screen.getByText((_content, el) => el?.tagName === 'P' && (el?.textContent ?? '').includes('This will remove') && (el?.textContent ?? '').includes('1 tile') && (el?.textContent ?? '').includes('from the map'));
+    expect(paragraph).toBeInTheDocument();
   });
 
   it('calls onConfirm when Delete group is clicked', async () => {

@@ -147,3 +147,199 @@ body {
   font-style: italic;
   margin-top: 0.5rem;
 }
+
+/* My Games section */
+.my-games-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.my-games-section h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.games-load-error {
+  color: #c00;
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+
+.my-games-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.game-save-confirmation {
+  color: #0a0;
+  font-size: 0.9rem;
+}
+
+.game-save-error {
+  color: #c00;
+  font-size: 0.9rem;
+}
+
+.my-games-list {
+  list-style: none;
+}
+
+.my-games-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.my-games-select {
+  flex: 1;
+  max-width: 280px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.my-games-select:hover {
+  background: #e8e8e8;
+}
+
+.my-games-select.active {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.my-games-edit {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  margin-right: 0.25rem;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.my-games-edit:hover {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.my-games-delete {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  color: #666;
+  background: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.my-games-delete:hover {
+  color: #c00;
+  border-color: #c00;
+}
+
+.my-games-delete-confirm {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.my-games-delete-confirm button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.my-games-delete-confirm button:first-child {
+  background: #c00;
+  color: white;
+  border: none;
+}
+
+.my-games-delete-confirm button:last-child {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+}
+
+.my-games-empty {
+  color: #666;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+/* Storage section (Task 5.5) */
+.storage-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.storage-section h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  color: #333;
+}
+
+.storage-loading,
+.storage-unavailable {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.storage-estimate p {
+  margin-bottom: 0.35rem;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.storage-warning {
+  color: #b8860b;
+  font-weight: 500;
+  margin-top: 0.5rem !important;
+}
+
+.storage-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.storage-cleanup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.storage-cleanup-button {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #333;
+}
+
+.storage-cleanup-button:hover:not(:disabled) {
+  background: #e0e0e0;
+  border-color: #999;
+}
+
+.storage-cleanup-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

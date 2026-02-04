@@ -6,7 +6,6 @@ import type { CameraMode, TilePattern } from '@/types';
 import { getTileDefinition, tileRegistry } from '@/models/Tile';
 import { storageService } from '@/services/storageService';
 import type { TileDefinition } from '@/models/Tile';
-import { findConnectedTiles } from '@/utils/tileGroupingUtils';
 import { getGroupId, getTileAtCell } from '@/utils/tileMapUtils';
 import { CollapsibleSection } from './CollapsibleSection';
 import { LevelPreview } from './LevelPreview';
@@ -496,7 +495,7 @@ export function PropertiesPanel() {
                                 const minY = Math.min(...allCells.map((t) => t.cellY));
                                 const defaultName = `Pattern ${new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`;
                                 const name = window.prompt('Name for this pattern', defaultName)?.trim() || defaultName;
-                                const cells = selectedTileGroup.map((t) => {
+                                const cells = allCells.map((t) => {
                                   const cell = grid[t.cellY]?.[t.cellX];
                                   return {
                                     relX: t.cellX - minX,
@@ -1153,7 +1152,6 @@ export function PropertiesPanel() {
               <label>Zoom</label>
               <div className="zoom-control">
                 {(() => {
-                  const gridSize = currentLevel.gridSize || 64;
                   // Zoom limits for slider display
                   // Use reasonable defaults for the slider range
                   const minZoom = 0.1;

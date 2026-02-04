@@ -26,13 +26,13 @@ describe('ConfirmPlaceOverwriteModal', () => {
       />
     );
     expect(screen.getByRole('heading', { name: /replace existing tiles\?/i })).toBeInTheDocument();
-    expect(
-      screen.getByText((_, el) =>
-        (el?.textContent ?? '').includes('This will replace') &&
-        (el?.textContent ?? '').includes('5') &&
-        (el?.textContent ?? '').includes('tiles with the selected tile')
-      )
-    ).toBeInTheDocument();
+    const paragraph = screen.getByText((_content, el) =>
+      el?.tagName === 'P' &&
+      (el?.textContent ?? '').includes('This will replace') &&
+      (el?.textContent ?? '').includes('5') &&
+      (el?.textContent ?? '').includes('tiles with the selected tile')
+    );
+    expect(paragraph).toBeInTheDocument();
   });
 
   it('uses singular "tile" when tileCount is 1', () => {
@@ -44,13 +44,13 @@ describe('ConfirmPlaceOverwriteModal', () => {
         onCancel={vi.fn()}
       />
     );
-    expect(
-      screen.getByText((_, el) =>
-        (el?.textContent ?? '').includes('This will replace') &&
-        (el?.textContent ?? '').includes('1 tile') &&
-        (el?.textContent ?? '').includes('with the selected tile')
-      )
-    ).toBeInTheDocument();
+    const paragraph = screen.getByText((_content, el) =>
+      el?.tagName === 'P' &&
+      (el?.textContent ?? '').includes('This will replace') &&
+      (el?.textContent ?? '').includes('1 tile') &&
+      (el?.textContent ?? '').includes('with the selected tile')
+    );
+    expect(paragraph).toBeInTheDocument();
   });
 
   it('calls onConfirm when Replace is clicked', async () => {

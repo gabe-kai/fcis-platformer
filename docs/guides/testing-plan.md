@@ -78,24 +78,25 @@ describe('calculateGridPosition', () => {
 
 **Example:**
 ```typescript
-// src/services/storageService.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { StorageService } from './storageService';
+// src/services/storageService.test.ts — uses fake-indexeddb for IndexedDB in Node
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
+import { storageService } from './storageService';
+import { createGame } from '@/models/Game';
 
 describe('StorageService', () => {
-  beforeEach(() => {
-    // Clear storage before each test
+  beforeEach(async () => {
+    (globalThis as any).indexedDB = new FDBFactory();
     localStorage.clear();
+    vi.resetModules();
+    await import('./storageService');
   });
 
   it('should save and load game correctly', async () => {
-    const service = new StorageService();
-    const game = { id: 'test', title: 'Test Game' };
-    
-    await service.saveGame(game);
-    const loaded = await service.loadGame('test');
-    
-    expect(loaded).toEqual(game);
+    const game = createGame({ id: 'test', title: 'Test Game', userId: 'user-1' });
+    await storageService.saveGame(game);
+    const loaded = await storageService.loadGame('test');
+    expect(loaded?.title).toBe('Test Game');
   });
 });
 ```

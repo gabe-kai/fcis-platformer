@@ -37,7 +37,7 @@ export function MovingPlatformPathEditor({
   const [centerX, setCenterX] = useState(platform.bounds.x + platform.bounds.width / 2);
   const [centerY, setCenterY] = useState(platform.bounds.y + platform.bounds.height / 2);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [_isDrawing, _setIsDrawing] = useState(false);
 
   // Generate path based on type
   useEffect(() => {
