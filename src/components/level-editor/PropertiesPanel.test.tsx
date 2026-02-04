@@ -71,7 +71,7 @@ describe('PropertiesPanel', () => {
   });
 
   it('should show empty state when no platform is selected', async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     const mockLevel = {
       id: 'level-1',
       gameId: 'game-1',

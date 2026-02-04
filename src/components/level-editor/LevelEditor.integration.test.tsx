@@ -30,6 +30,7 @@ vi.mock('@/services/storageService', () => ({
     loadLevel: vi.fn(),
     saveLevel: vi.fn(),
   },
+  isQuotaExceededError: vi.fn(() => false),
 }));
 
 // Mock logger
@@ -42,30 +43,41 @@ vi.mock('@/utils/logger', () => ({
   },
 }));
 
-// Mock canvas getContext (return plain object to avoid recursion from document.createElement('canvas').getContext)
-HTMLCanvasElement.prototype.getContext = vi.fn(function (_contextId: string) {
-  return {
-    save: vi.fn(),
-    restore: vi.fn(),
-    beginPath: vi.fn(),
-    moveTo: vi.fn(),
-    lineTo: vi.fn(),
-    stroke: vi.fn(),
-    fillRect: vi.fn(),
-    clearRect: vi.fn(),
-    setLineDash: vi.fn(),
-    strokeRect: vi.fn(),
-    drawImage: vi.fn(),
-    getImageData: vi.fn(),
-    putImageData: vi.fn(),
-    setTransform: vi.fn(),
-    fillStyle: '',
-    strokeStyle: '',
-    lineWidth: 0,
-    font: '',
-    textAlign: '',
-    canvas: { width: 800, height: 600 },
-  } as unknown as CanvasRenderingContext2D;
+// Mock canvas getContext and toDataURL (TileLibrary/fillPatternGenerator need full 2D API)
+const mockCanvasContext = {
+  save: vi.fn(),
+  restore: vi.fn(),
+  beginPath: vi.fn(),
+  closePath: vi.fn(),
+  moveTo: vi.fn(),
+  lineTo: vi.fn(),
+  arc: vi.fn(),
+  ellipse: vi.fn(),
+  quadraticCurveTo: vi.fn(),
+  bezierCurveTo: vi.fn(),
+  stroke: vi.fn(),
+  fill: vi.fn(),
+  fillRect: vi.fn(),
+  clearRect: vi.fn(),
+  setLineDash: vi.fn(),
+  strokeRect: vi.fn(),
+  drawImage: vi.fn(),
+  getImageData: vi.fn(),
+  putImageData: vi.fn(),
+  setTransform: vi.fn(),
+  fillStyle: '',
+  strokeStyle: '',
+  lineWidth: 0,
+  font: '',
+  textAlign: '',
+  canvas: { width: 800, height: 600 },
+} as unknown as CanvasRenderingContext2D;
+
+(HTMLCanvasElement.prototype as unknown as { getContext: ReturnType<typeof vi.fn> }).getContext = vi.fn(function (_contextId: string) {
+  return mockCanvasContext;
+});
+HTMLCanvasElement.prototype.toDataURL = vi.fn(function (_type?: string) {
+  return 'data:image/png;base64,';
 });
 
 describe('LevelEditor Integration Tests', () => {
@@ -90,6 +102,7 @@ describe('LevelEditor Integration Tests', () => {
     selectedTileEntry: null,
     selectedTileGroup: null,
     selectedTileGroups: [],
+    clipboardTiles: [] as Array<{ relX: number; relY: number; tileId: string; passable: boolean; layer: 'background' | 'primary' | 'foreground' }>,
     gridEnabled: true,
     viewMode: 'texture' as const,
     gridSize: 64,
@@ -131,9 +144,14 @@ describe('LevelEditor Integration Tests', () => {
     ...overrides,
   });
 
+  type StoreState = ReturnType<typeof makeStore>;
+  let editorStoreState: StoreState;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(makeStore());
+    editorStoreState = makeStore();
+    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
+    (useEditorStore as unknown as { getState: () => StoreState }).getState = () => editorStoreState;
   });
 
   describe('Level Loading and Display', () => {
@@ -148,9 +166,8 @@ describe('LevelEditor Integration Tests', () => {
       });
 
       (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -198,9 +215,8 @@ describe('LevelEditor Integration Tests', () => {
       });
 
       (storageService.saveLevel as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -230,9 +246,8 @@ describe('LevelEditor Integration Tests', () => {
       (storageService.saveLevel as ReturnType<typeof vi.fn>).mockRejectedValue(
         new Error('Save failed')
       );
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -260,9 +275,8 @@ describe('LevelEditor Integration Tests', () => {
       });
 
       (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -297,9 +311,8 @@ describe('LevelEditor Integration Tests', () => {
       });
 
       (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -324,9 +337,8 @@ describe('LevelEditor Integration Tests', () => {
       });
 
       (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>
@@ -355,9 +367,8 @@ describe('LevelEditor Integration Tests', () => {
       level.tileGrid[1][1] = { tileId: DEFAULT_SOLID_BLOCK.id, passable: false, layer: 'primary' };
 
       (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
-      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
-        makeStore({ currentLevel: level })
-      );
+      editorStoreState = makeStore({ currentLevel: level });
+      (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(editorStoreState);
 
       render(
         <BrowserRouter>

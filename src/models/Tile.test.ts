@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DEFAULT_SOLID_BLOCK, DEFAULT_TILES, tileRegistry, getTileDefinition } from './Tile';
-import { generateSystemTileTexture } from '@/utils/tileTextureGenerator';
 
 // Mock tileTextureGenerator
 vi.mock('@/utils/tileTextureGenerator', () => ({

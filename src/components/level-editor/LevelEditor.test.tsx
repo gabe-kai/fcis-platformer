@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { LevelEditor } from './LevelEditor';
 import { useEditorStore } from '@/stores/editorStore';
@@ -215,9 +216,9 @@ describe('LevelEditor', () => {
 
     (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
     (storageService.saveLevel as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(getBaseStore({
-      currentLevel: level,
-    }));
+    const state = getBaseStore({ currentLevel: level });
+    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(state);
+    (useEditorStore as unknown as { getState: () => typeof state }).getState = () => state;
 
     render(
       <BrowserRouter>
@@ -237,6 +238,38 @@ describe('LevelEditor', () => {
     });
   });
 
+  it('should save level when Ctrl+S is pressed', async () => {
+    const level = createLevel({
+      id: 'test-level-1',
+      gameId: 'game-1',
+      title: 'Test Level',
+      width: 800,
+      height: 600,
+    });
+
+    (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
+    (storageService.saveLevel as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+    const state = getBaseStore({ currentLevel: level });
+    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(state);
+    (useEditorStore as unknown as { getState: () => typeof state }).getState = () => state;
+
+    render(
+      <BrowserRouter>
+        <LevelEditor />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Save Level')).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(window, { key: 's', ctrlKey: true, preventDefault: vi.fn() });
+
+    await waitFor(() => {
+      expect(storageService.saveLevel).toHaveBeenCalledWith(level);
+    });
+  });
+
   it('should show save status after saving', async () => {
     const user = userEvent.setup();
     const level = createLevel({
@@ -249,9 +282,9 @@ describe('LevelEditor', () => {
 
     (storageService.loadLevel as ReturnType<typeof vi.fn>).mockResolvedValue(level);
     (storageService.saveLevel as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(getBaseStore({
-      currentLevel: level,
-    }));
+    const state = getBaseStore({ currentLevel: level });
+    (useEditorStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(state);
+    (useEditorStore as unknown as { getState: () => typeof state }).getState = () => state;
 
     render(
       <BrowserRouter>

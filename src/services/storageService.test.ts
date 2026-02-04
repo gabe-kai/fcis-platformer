@@ -1,16 +1,28 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { storageService } from './storageService';
-import { createLevel } from '@/models/Level';
+// @ts-expect-error - fake-indexeddb subpath has no declaration file
+import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
+import { createLevel, updateLevel } from '@/models/Level';
 import { createPlatform } from '@/models/Platform';
-import { updateLevel } from '@/models/Level';
+import { createGame } from '@/models/Game';
+import { isQuotaExceededError, type BackgroundImageEntry, type StorageService } from './storageService';
 
-describe('StorageService - Level Operations', () => {
-  beforeEach(() => {
+let storageService: StorageService;
+
+const resetIndexedDb = () => {
+  const factory = new FDBFactory();
+  (globalThis as unknown as { indexedDB: IDBFactory }).indexedDB = factory as unknown as IDBFactory;
+};
+
+describe('StorageService - IndexedDB Operations', () => {
+  beforeEach(async () => {
+    resetIndexedDb();
     localStorage.clear();
+    vi.resetModules();
+    ({ storageService } = await import('./storageService'));
   });
 
   describe('saveLevel', () => {
-    it('should save level to localStorage', async () => {
+    it('should save and load a level', async () => {
       const platform = createPlatform({
         id: 'platform-1',
         levelId: 'level-1',
@@ -28,12 +40,11 @@ describe('StorageService - Level Operations', () => {
 
       await storageService.saveLevel(levelWithPlatform);
 
-      const saved = localStorage.getItem('fcis_levels');
-      expect(saved).toBeTruthy();
-      const levels = JSON.parse(saved!);
-      expect(levels['level-1']).toBeDefined();
-      expect(levels['level-1'].id).toBe('level-1');
-      expect(levels['level-1'].title).toBe('Test Level');
+      const loaded = await storageService.loadLevel('level-1');
+      expect(loaded).toBeTruthy();
+      expect(loaded?.id).toBe('level-1');
+      expect(loaded?.title).toBe('Test Level');
+      expect(loaded?.platforms).toHaveLength(1);
     });
 
     it('should update existing level', async () => {
@@ -57,10 +68,9 @@ describe('StorageService - Level Operations', () => {
 
       await storageService.saveLevel(level2);
 
-      const saved = localStorage.getItem('fcis_levels');
-      const levels = JSON.parse(saved!);
-      expect(levels['level-1'].title).toBe('Updated Title');
-      expect(levels['level-1'].width).toBe(12);
+      const loaded = await storageService.loadLevel('level-1');
+      expect(loaded?.title).toBe('Updated Title');
+      expect(loaded?.width).toBe(12);
     });
 
     it('should save multiple levels', async () => {
@@ -83,34 +93,15 @@ describe('StorageService - Level Operations', () => {
       await storageService.saveLevel(level1);
       await storageService.saveLevel(level2);
 
-      const saved = localStorage.getItem('fcis_levels');
-      const levels = JSON.parse(saved!);
-      expect(Object.keys(levels)).toHaveLength(2);
-      expect(levels['level-1']).toBeDefined();
-      expect(levels['level-2']).toBeDefined();
-    });
-
-    it('should throw error on localStorage failure', async () => {
-      const originalSetItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = vi.fn(() => {
-        throw new Error('Storage quota exceeded');
-      });
-
-      const level = createLevel({
-        id: 'level-1',
-        gameId: 'game-1',
-        title: 'Test Level',
-        width: 10,
-        height: 10,
-      });
-
-      await expect(storageService.saveLevel(level)).rejects.toThrow();
-      Storage.prototype.setItem = originalSetItem;
+      const levels = await storageService.listLevels('game-1');
+      expect(levels).toHaveLength(2);
+      expect(levels.map((l) => l.id)).toContain('level-1');
+      expect(levels.map((l) => l.id)).toContain('level-2');
     });
   });
 
   describe('loadLevel', () => {
-    it('should load level from localStorage', async () => {
+    it('should load level from storage', async () => {
       const level = createLevel({
         id: 'level-1',
         gameId: 'game-1',
@@ -134,7 +125,7 @@ describe('StorageService - Level Operations', () => {
       expect(loaded).toBeNull();
     });
 
-    it('should return null when localStorage is empty', async () => {
+    it('should return null when storage is empty', async () => {
       const loaded = await storageService.loadLevel('level-1');
       expect(loaded).toBeNull();
     });
@@ -160,11 +151,6 @@ describe('StorageService - Level Operations', () => {
 
       expect(loaded?.platforms).toHaveLength(1);
       expect(loaded?.platforms[0].id).toBe('platform-1');
-    });
-
-    it('should throw error on localStorage parse failure', async () => {
-      localStorage.setItem('fcis_levels', 'invalid json');
-      await expect(storageService.loadLevel('level-1')).rejects.toThrow();
     });
   });
 
@@ -223,15 +209,10 @@ describe('StorageService - Level Operations', () => {
       const levels = await storageService.listLevels('game-2');
       expect(levels).toEqual([]);
     });
-
-    it('should throw error on localStorage parse failure', async () => {
-      localStorage.setItem('fcis_levels', 'invalid json');
-      await expect(storageService.listLevels('game-1')).rejects.toThrow();
-    });
   });
 
   describe('deleteLevel', () => {
-    it('should delete level from localStorage', async () => {
+    it('should delete level from storage', async () => {
       const level = createLevel({
         id: 'level-1',
         gameId: 'game-1',
@@ -280,50 +261,79 @@ describe('StorageService - Level Operations', () => {
       await expect(storageService.deleteLevel('non-existent')).resolves.not.toThrow();
     });
 
-    it('should handle deletion when localStorage is empty', async () => {
+    it('should handle deletion when storage is empty', async () => {
       await expect(storageService.deleteLevel('level-1')).resolves.not.toThrow();
     });
+  });
 
-    it('should throw error on localStorage failure during delete', async () => {
-      const level = createLevel({
-        id: 'level-1',
-        gameId: 'game-1',
-        title: 'Test Level',
-        width: 10,
-        height: 10,
-      });
+  describe('Game Operations', () => {
+    it('should save and load a game', async () => {
+      const game = createGame({ id: 'game-1', title: 'Test Game', userId: 'user-1' });
+      await storageService.saveGame(game);
+      const loaded = await storageService.loadGame('game-1');
+      expect(loaded).toBeTruthy();
+      expect(loaded?.id).toBe('game-1');
+      expect(loaded?.title).toBe('Test Game');
+      expect(loaded?.userId).toBe('user-1');
+    });
 
-      await storageService.saveLevel(level);
+    it('should update existing game', async () => {
+      const game1 = createGame({ id: 'game-1', title: 'Original', userId: 'user-1' });
+      await storageService.saveGame(game1);
+      const game2 = createGame({ id: 'game-1', title: 'Updated', userId: 'user-1' });
+      await storageService.saveGame(game2);
+      const loaded = await storageService.loadGame('game-1');
+      expect(loaded?.title).toBe('Updated');
+    });
 
-      const originalSetItem = Storage.prototype.setItem;
-      Storage.prototype.setItem = vi.fn(() => {
-        throw new Error('Storage quota exceeded');
-      });
+    it('should list games by userId', async () => {
+      await storageService.saveGame(createGame({ id: 'g1', title: 'G1', userId: 'user-1' }));
+      await storageService.saveGame(createGame({ id: 'g2', title: 'G2', userId: 'user-1' }));
+      await storageService.saveGame(createGame({ id: 'g3', title: 'G3', userId: 'user-2' }));
+      const list = await storageService.listGames('user-1');
+      expect(list).toHaveLength(2);
+      expect(list.map((g) => g.id)).toContain('g1');
+      expect(list.map((g) => g.id)).toContain('g2');
+      expect(list.map((g) => g.id)).not.toContain('g3');
+    });
 
-      await expect(storageService.deleteLevel('level-1')).rejects.toThrow();
-      Storage.prototype.setItem = originalSetItem;
+    it('should return null when game not found', async () => {
+      const loaded = await storageService.loadGame('nonexistent');
+      expect(loaded).toBeNull();
+    });
+
+    it('should delete game', async () => {
+      const game = createGame({ id: 'game-1', title: 'To Delete', userId: 'user-1' });
+      await storageService.saveGame(game);
+      await storageService.deleteGame('game-1');
+      const loaded = await storageService.loadGame('game-1');
+      expect(loaded).toBeNull();
+    });
+
+    it('should not delete other games', async () => {
+      await storageService.saveGame(createGame({ id: 'g1', title: 'G1', userId: 'user-1' }));
+      await storageService.saveGame(createGame({ id: 'g2', title: 'G2', userId: 'user-1' }));
+      await storageService.deleteGame('g1');
+      expect(await storageService.loadGame('g1')).toBeNull();
+      expect(await storageService.loadGame('g2')).toBeTruthy();
     });
   });
 
   describe('Background Image Operations', () => {
-    const BACKGROUND_IMAGES_KEY = 'fcis_background_images';
-
-    it('should save background image to localStorage', async () => {
-      const entry = {
+    it('should save background image', async () => {
+      const entry: BackgroundImageEntry = {
         id: 'bg_1',
         name: 'My Background',
         dataUrl: 'data:image/png;base64,abc123',
         createdAt: 1000,
       };
       await storageService.saveBackgroundImage(entry);
-      const saved = localStorage.getItem(BACKGROUND_IMAGES_KEY);
-      expect(saved).toBeTruthy();
-      const map = JSON.parse(saved!);
-      expect(map['bg_1']).toBeDefined();
-      expect(map['bg_1'].id).toBe('bg_1');
-      expect(map['bg_1'].name).toBe('My Background');
-      expect(map['bg_1'].dataUrl).toBe(entry.dataUrl);
-      expect(map['bg_1'].createdAt).toBe(1000);
+      const list = await storageService.listBackgroundImages();
+      expect(list).toHaveLength(1);
+      expect(list[0].id).toBe('bg_1');
+      expect(list[0].name).toBe('My Background');
+      expect(list[0].dataUrl).toBe(entry.dataUrl);
+      expect(list[0].createdAt).toBe(1000);
     });
 
     it('should list background images sorted by createdAt descending', async () => {
@@ -360,9 +370,6 @@ describe('StorageService - Level Operations', () => {
       await storageService.deleteBackgroundImage('bg_1');
       const list = await storageService.listBackgroundImages();
       expect(list).toHaveLength(0);
-      const saved = localStorage.getItem(BACKGROUND_IMAGES_KEY);
-      const map = JSON.parse(saved!);
-      expect(map['bg_1']).toBeUndefined();
     });
 
     it('should not delete other background images when deleting one', async () => {
@@ -382,6 +389,75 @@ describe('StorageService - Level Operations', () => {
       const list = await storageService.listBackgroundImages();
       expect(list).toHaveLength(1);
       expect(list[0].id).toBe('bg_2');
+    });
+  });
+
+  describe('isQuotaExceededError', () => {
+    it('returns true for DOMException QuotaExceededError', () => {
+      const err = new DOMException('Quota exceeded', 'QuotaExceededError');
+      expect(isQuotaExceededError(err)).toBe(true);
+    });
+
+    it('returns false for generic Error', () => {
+      expect(isQuotaExceededError(new Error('fail'))).toBe(false);
+    });
+
+    it('returns false for other DOMException', () => {
+      const err = new DOMException('NotFound', 'NotFoundError');
+      expect(isQuotaExceededError(err)).toBe(false);
+    });
+  });
+
+  describe('getStorageEstimate', () => {
+    it('returns null when navigator.storage is not available', async () => {
+      const result = await storageService.getStorageEstimate();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getStorageBreakdown', () => {
+    it('returns counts for all stores', async () => {
+      await storageService.saveGame(createGame({ id: 'g1', title: 'G1', userId: 'u1' }));
+      await storageService.saveLevel(createLevel({ id: 'l1', gameId: 'g1', title: 'L1', width: 10, height: 10 }));
+      await storageService.saveBackgroundImage({ id: 'bg1', name: 'Bg', dataUrl: 'data:x', createdAt: 1 });
+      const breakdown = await storageService.getStorageBreakdown();
+      expect(breakdown.games).toBe(1);
+      expect(breakdown.levels).toBe(1);
+      expect(breakdown.backgroundImages).toBe(1);
+      expect(breakdown.patterns).toBe(0);
+      expect(typeof breakdown.worldmaps).toBe('number');
+      expect(typeof breakdown.graphics).toBe('number');
+      expect(typeof breakdown.userTiles).toBe('number');
+    });
+  });
+
+  describe('clearBackgroundImages', () => {
+    it('removes all background images', async () => {
+      await storageService.saveBackgroundImage({ id: 'b1', name: 'A', dataUrl: 'data:a', createdAt: 1 });
+      await storageService.saveBackgroundImage({ id: 'b2', name: 'B', dataUrl: 'data:b', createdAt: 2 });
+      await storageService.clearBackgroundImages();
+      const list = await storageService.listBackgroundImages();
+      expect(list).toHaveLength(0);
+    });
+  });
+
+  describe('clearPatterns', () => {
+    it('removes all patterns', async () => {
+      await storageService.savePattern({
+        id: 'p1',
+        name: 'P1',
+        createdAt: 1,
+        cells: [{ relX: 0, relY: 0, tileId: 't1', passable: false, layer: 'primary' }],
+      });
+      await storageService.savePattern({
+        id: 'p2',
+        name: 'P2',
+        createdAt: 2,
+        cells: [],
+      });
+      await storageService.clearPatterns();
+      const list = await storageService.listPatterns();
+      expect(list).toHaveLength(0);
     });
   });
 });

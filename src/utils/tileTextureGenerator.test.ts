@@ -26,7 +26,7 @@ describe('tileTextureGenerator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock document.createElement
-    global.document = {
+    globalThis.document = {
       createElement: vi.fn((tag: string) => {
         if (tag === 'canvas') {
           return mockCanvas as unknown as HTMLCanvasElement;
@@ -40,7 +40,7 @@ describe('tileTextureGenerator', () => {
     it('should generate a texture for solid tile type', () => {
       const result = generateSystemTileTexture('solid', 64);
       expect(result).toBe('data:image/png;base64,mock');
-      expect(global.document.createElement).toHaveBeenCalledWith('canvas');
+      expect(globalThis.document.createElement).toHaveBeenCalledWith('canvas');
       expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/png');
     });
 
@@ -97,7 +97,7 @@ describe('tileTextureGenerator', () => {
 
     it('should return empty string if context is null', () => {
       const originalGetContext = mockCanvas.getContext;
-      mockCanvas.getContext = vi.fn(() => null);
+      (mockCanvas.getContext as ReturnType<typeof vi.fn>) = vi.fn((): CanvasRenderingContext2D | null => null);
       
       const result = generateSystemTileTexture('solid', 64);
       expect(result).toBe('');

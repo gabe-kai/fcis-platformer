@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEditorStore } from '@/stores/editorStore';
-import { storageService } from '@/services/storageService';
+import { storageService, isQuotaExceededError } from '@/services/storageService';
 import { logger } from '@/utils/logger';
 import { LevelCanvas } from './LevelCanvas';
 import { ToolPalette } from './ToolPalette';
@@ -82,6 +82,7 @@ export function LevelEditor() {
         }
 
         setCurrentLevel(level);
+        skipFirstAutosave.current = true; // avoid autosave immediately after load
         // Width and height are now in cells
         const widthCells = level.tileGrid?.[0]?.length || level.width;
         const heightCells = level.tileGrid?.length || level.height;
@@ -123,23 +124,98 @@ export function LevelEditor() {
     }
     const id = setTimeout(async () => {
       try {
+        setSaveStatus('saving');
         await storageService.saveLevel(currentLevel);
         setLastSavedAt(Date.now());
-        logger.info('Level autosaved', {
+        setSaveStatus('saved');
+        logger.debug('Auto-saving level', {
           component: 'LevelEditor',
           operation: 'autosave',
           levelId: currentLevel.id,
         });
+        setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (error) {
+        setSaveStatus('error');
         logger.error('Failed to autosave level', {
           component: 'LevelEditor',
           operation: 'autosave',
           levelId: currentLevel.id,
         }, { error: error instanceof Error ? error.message : String(error) });
+        setTimeout(() => setSaveStatus('idle'), 3000);
       }
     }, 2000);
     return () => clearTimeout(id);
   }, [currentLevel]);
+
+  // 30-second interval backup save
+  useEffect(() => {
+    if (!currentLevel) return;
+    const intervalId = setInterval(async () => {
+      try {
+        const level = useEditorStore.getState().currentLevel;
+        if (!level) return;
+        setSaveStatus('saving');
+        await storageService.saveLevel(level);
+        setLastSavedAt(Date.now());
+        setSaveStatus('saved');
+        logger.debug('Auto-saving level (interval)', {
+          component: 'LevelEditor',
+          operation: 'autosave',
+          levelId: level.id,
+        });
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        setSaveStatus('error');
+        logger.error('Failed to autosave level (interval)', {
+          component: 'LevelEditor',
+          operation: 'autosave',
+          levelId: currentLevel.id,
+        }, { error: error instanceof Error ? error.message : String(error) });
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      }
+    }, 30_000);
+    return () => clearInterval(intervalId);
+  }, [currentLevel]);
+
+  const handleSave = useCallback(async () => {
+    const level = useEditorStore.getState().currentLevel;
+    if (!level || isSaving) return;
+
+    setIsSaving(true);
+    setSaveStatus('saving');
+
+    try {
+      await storageService.saveLevel(level);
+      setSaveStatus('saved');
+      setLastSavedAt(Date.now());
+      logger.info('Level saved', {
+        component: 'LevelEditor',
+        operation: 'save',
+        levelId: level.id,
+      });
+
+      // Reset save status after 2 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2000);
+    } catch (error) {
+      setSaveStatus('error');
+      logger.error('Failed to save level', {
+        component: 'LevelEditor',
+        operation: 'save',
+        levelId: level.id,
+      }, { error: error instanceof Error ? error.message : String(error) });
+      if (isQuotaExceededError(error)) {
+        alert('Storage is full. Free up space on the Dashboard (Storage section: clear background images or patterns), then try again.');
+      }
+      // Reset error status after 3 seconds
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [isSaving]);
 
   // Undo/Redo keyboard shortcuts (Ctrl+Z / Cmd+Z, Ctrl+Y / Ctrl+Shift+Z / Cmd+Shift+Z)
   useEffect(() => {
@@ -186,6 +262,13 @@ export function LevelEditor() {
         }
       }
       
+      // Save (Ctrl+S / Cmd+S)
+      if ((e.key === 's' || e.key === 'S') && mod) {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
+
       // Delete key: delete selected platform
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const { selectedPlatform, deletePlatform, setSelectedPlatform } = useEditorStore.getState();
@@ -200,44 +283,7 @@ export function LevelEditor() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentLevel, undo, redo]);
-
-  const handleSave = async () => {
-    if (!currentLevel || isSaving) return;
-
-    setIsSaving(true);
-    setSaveStatus('saving');
-
-    try {
-      await storageService.saveLevel(currentLevel);
-      setSaveStatus('saved');
-      setLastSavedAt(Date.now());
-      logger.info('Level saved', {
-        component: 'LevelEditor',
-        operation: 'save',
-        levelId: currentLevel.id,
-      });
-
-      // Reset save status after 2 seconds
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 2000);
-    } catch (error) {
-      setSaveStatus('error');
-      logger.error('Failed to save level', {
-        component: 'LevelEditor',
-        operation: 'save',
-        levelId: currentLevel.id,
-      }, { error: error instanceof Error ? error.message : String(error) });
-
-      // Reset error status after 3 seconds
-      setTimeout(() => {
-        setSaveStatus('idle');
-      }, 3000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  }, [currentLevel, undo, redo, handleSave]);
 
   const handleDimensionSave = () => {
     if (!currentLevel) return;

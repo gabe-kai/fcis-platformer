@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { useGameStore } from '@/stores/gameStore';
 import { storageService } from '@/services/storageService';
 import { authService } from '@/services/authService';
 import { createLevel } from '@/models/Level';
@@ -14,9 +15,13 @@ import './LevelBrowser.css';
  * 
  * Displays user's levels, shared levels, and option to create new levels.
  */
+const FALLBACK_GAME_ID = 'test-game';
+
 export function LevelBrowser() {
   const navigate = useNavigate();
   const { user, updateProfile } = useAuthStore();
+  const { currentGame } = useGameStore();
+  const gameId = currentGame?.id ?? FALLBACK_GAME_ID;
   const [myLevels, setMyLevels] = useState<Level[]>([]);
   const [sharedLevels, setSharedLevels] = useState<Level[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,16 +30,14 @@ export function LevelBrowser() {
 
   useEffect(() => {
     loadLevels();
-  }, [user]);
+  }, [user, gameId]);
 
   const loadLevels = async () => {
     if (!user) return;
 
     setIsLoading(true);
     try {
-      // For now, we'll load all levels for the test game
-      // In the future, this will filter by user
-      const allLevels = await storageService.listLevels('test-game');
+      const allLevels = await storageService.listLevels(gameId);
       
       // Separate into my levels and shared levels
       // For now, all levels are "my levels" since we don't have multi-user yet
@@ -61,7 +64,7 @@ export function LevelBrowser() {
     setIsCreating(true);
     try {
       const newLevel = createLevel({
-        gameId: 'test-game',
+        gameId,
         title: `New Level ${myLevels.length + 1}`,
         description: 'A new level',
       });
@@ -176,6 +179,11 @@ export function LevelBrowser() {
       </header>
 
       <div className="level-browser-content">
+        {currentGame && (
+          <p className="level-browser-game-context" role="status">
+            Levels for game: <strong>{currentGame.title}</strong>
+          </p>
+        )}
         {/* Create New Level Section */}
         <section className="level-section create-section">
           <div className="section-header">

@@ -264,10 +264,11 @@ interface TilePattern {
 - ✅ Delete group button
 
 #### Save/Load System
-- ✅ Manual save (header button)
-- ✅ Autosave (debounced 2s after changes)
+- ✅ Manual save (header button; Ctrl+S / Cmd+S)
+- ✅ Autosave (debounced 2s after changes; 30s interval backup)
 - ✅ Last-saved timestamp (header indicator)
-- ✅ localStorage storage (`fcis_levels`)
+- ✅ Saving/Saved/Error indicator (shared for manual and autosave)
+- ✅ IndexedDB storage (levels in `levels` object store; legacy localStorage migrated on first load)
 - ✅ JSON format (human-readable)
 
 #### Undo/Redo System
@@ -294,7 +295,7 @@ interface TilePattern {
 - ✅ TileUploadModal component
 - ✅ Square aspect validation (16-256px)
 - ✅ Format support (PNG, JPG, GIF, WebP)
-- ✅ localStorage storage (`fcis_user_tiles`)
+- ✅ IndexedDB storage (user tiles in `userTiles` object store)
 - ✅ Tile registry integration
 
 ### 🟡 Partially Implemented Features

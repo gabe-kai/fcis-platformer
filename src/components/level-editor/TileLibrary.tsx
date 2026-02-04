@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useEditorStore } from '@/stores/editorStore';
-import { getAllTileDefinitions, type TileDefinition, TILE_TYPE_COLORS, tileRegistry } from '@/models/Tile';
+import { type TileDefinition, TILE_TYPE_COLORS, tileRegistry } from '@/models/Tile';
 import { storageService, type BackgroundImageEntry } from '@/services/storageService';
 import { logger } from '@/utils/logger';
 import type { TilePattern } from '@/types';
 import { initializeSystemPatterns } from '@/utils/patternInitializer';
-import { getCategoryOrder, getCategoryDisplayName, type PatternCategory } from '@/utils/systemPatterns';
+import { getCategoryOrder, getCategoryDisplayName } from '@/utils/systemPatterns';
 import {
   SYSTEM_FILL_PATTERNS,
   generateFillPattern,
-  getFillPatternsByCategory,
   getFillCategoryDisplayName,
   type FillPattern,
 } from '@/utils/fillPatternGenerator';
@@ -31,7 +30,6 @@ export function TileLibrary() {
   const [patterns, setPatterns] = useState<TilePattern[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const allTiles = getAllTileDefinitions();
 
   // Load user tiles on mount and when notified (e.g. upload from Selected Object panel)
   useEffect(() => {
@@ -433,6 +431,12 @@ export function TileLibrary() {
 
   const handleDeleteBackgroundImage = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const confirmed = window.confirm(
+      'This will remove the background image from your library permanently. It will no longer be available in any level.\n\n' +
+        'To remove it from only this level, use the "Remove" button in the Background Image section of Level Details (right panel).\n\n' +
+        'Remove from library anyway?'
+    );
+    if (!confirmed) return;
     try {
       await storageService.deleteBackgroundImage(id);
       setBackgroundImages((prev) => prev.filter((img) => img.id !== id));

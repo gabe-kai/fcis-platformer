@@ -43,6 +43,12 @@
   padding: 2rem;
 }
 
+.level-browser-game-context {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: #555;
+}
+
 .level-section {
   margin-bottom: 3rem;
 }

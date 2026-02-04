@@ -138,7 +138,7 @@ export function TileUploadModal({ isOpen, onClose, onTileCreated }: TileUploadMo
           width: imageSize.width,
           height: imageSize.height,
         },
-        platformType: tileType === 'path' ? 'oneWay' : 'solid',
+        platformType: tileType === 'path' ? 'one-way' : 'solid',
         properties: {},
         source: 'user',
       };

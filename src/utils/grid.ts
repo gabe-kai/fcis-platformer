@@ -1,6 +1,5 @@
 import { logger } from '@/utils/logger';
 import { getVisibleCells } from './cellCoordinates';
-import { cellToCanvas } from './cellCoordinates';
 
 /**
  * Calculates the grid position for a given coordinate, snapping to the nearest grid cell.

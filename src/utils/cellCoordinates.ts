@@ -28,7 +28,7 @@ export function cellToCanvas(
   zoom: number,
   scrollLeft: number,
   scrollTop: number,
-  canvasHeight: number,
+  _canvasHeight: number,
   mapHeightCells: number
 ): { x: number; y: number } {
   const cellSizePixels = gridSize * zoom;
@@ -76,7 +76,7 @@ export function canvasToCell(
   zoom: number,
   scrollLeft: number,
   scrollTop: number,
-  canvasHeight: number,
+  _canvasHeight: number,
   mapHeightCells: number
 ): { cellX: number; cellY: number } {
   const cellSizePixels = gridSize * zoom;

@@ -22,7 +22,7 @@ export function BackgroundImagePlacementModal({
   imageDataUrl,
   levelWidthCells,
   levelHeightCells,
-  gridSize,
+  gridSize: _gridSize,
   onApprove,
   onCancel,
 }: BackgroundImagePlacementModalProps) {

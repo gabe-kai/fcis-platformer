@@ -6,7 +6,7 @@ import type { Platform } from '@/models/Platform';
 import { logger } from '@/utils/logger';
 import { wouldOverlap } from '@/utils/platformUtils';
 import { updateLevel as updateLevelModel } from '@/models/Level';
-import { setTileAtCell, removeTileAtCell, removeTilesInRange, resizeTileGrid, updateCellDisplayName, getGroupId, setFillPatternAtCell } from '@/utils/tileMapUtils';
+import { setTileAtCell, removeTileAtCell, removeTilesInRange, resizeTileGrid, updateCellDisplayName, setFillPatternAtCell } from '@/utils/tileMapUtils';
 import { validateLevel, type LevelValidationWarnings } from '@/utils/levelValidation';
 
 import type { TileDefinition } from '@/models/Tile';
@@ -66,6 +66,8 @@ interface EditorState {
   pendingBackgroundImageDataUrl: string | null;
   /** When set, in-editor "delete tile group" confirmation modal is shown */
   pendingTileGroupDelete: Array<{ cellX: number; cellY: number; tileId: string; passable: boolean }> | null;
+  /** When set, next tile selection from library assigns to this cell (texture assignment flow) */
+  pendingTextureAssignment: { cellX: number; cellY: number } | null;
   /** When set, in-editor "place over existing tiles" confirmation modal is shown (red highlight + confirm) */
   pendingPlaceOverwrite: {
     minCellX: number;
@@ -172,6 +174,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   redoStack: [],
   maxUndoSteps: 16,
   selectedPattern: null,
+  selectedFillPattern: null,
   clipboardTiles: [],
   hoverCell: null,
 
@@ -476,7 +479,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   cutSelectionToClipboard: () => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps, selectedTileGroups, selectedTileEntry, setSelectedTileEntry, setSelectedTileGroup, setSelectedTileGroups } = get();
+    const { currentLevel, undoStack, maxUndoSteps, selectedTileGroups, selectedTileEntry } = get();
     if (!currentLevel?.tileGrid) return;
 
     const grid = currentLevel.tileGrid;
@@ -570,7 +573,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   pasteClipboardAt: (originCellX, originCellY) => {
-    const { currentLevel, clipboardTiles, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, clipboardTiles, undoStack, maxUndoSteps } = get();
     if (!currentLevel?.tileGrid) return;
     if (!clipboardTiles.length) return;
 
@@ -618,7 +621,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   placePlatform: (platform) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot place platform: no current level', {
         component: 'EditorStore',
@@ -658,7 +661,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   deletePlatform: (platformId) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot delete platform: no current level', {
         component: 'EditorStore',
@@ -689,7 +692,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   updatePlatformProperties: (platformId, updates) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot update platform: no current level', {
         component: 'EditorStore',
@@ -755,7 +758,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   cleanupOrphanedPlatforms: () => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot cleanup platforms: no current level', {
         component: 'EditorStore',
@@ -812,7 +815,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       component: 'EditorStore',
       operation: 'cleanupOrphanedPlatforms',
       count: orphanedPlatformIds.length,
-      platformIds: orphanedPlatformIds,
+      platformIds: orphanedPlatformIds.join(','),
     });
     
     const updatedLevel: Level = {
@@ -837,7 +840,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   
   // Tile map management actions
   setTileAtCell: (tileId, cellX, cellY, passable = false, layer) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot set tile: no current level', {
         component: 'EditorStore',
@@ -870,7 +873,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   removeTileAtCell: (cellX, cellY) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot remove tile: no current level', {
         component: 'EditorStore',
@@ -912,7 +915,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setTileDisplayName: (cellX, cellY, displayName) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel?.tileGrid) return;
     const snapshot = structuredClone(currentLevel);
     set({ undoStack: [...undoStack, snapshot].slice(-maxUndoSteps), redoStack: [] });
@@ -926,12 +929,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setGroupDisplayName: (groupId, displayName) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) return;
     const snapshot = structuredClone(currentLevel);
     set({ undoStack: [...undoStack, snapshot].slice(-maxUndoSteps), redoStack: [] });
-    const next = { ...(currentLevel.groupDisplayNames || {}), [groupId]: displayName || undefined };
-    if (!displayName || displayName.trim() === '') delete next[groupId];
+    const next: Record<string, string> = { ...(currentLevel.groupDisplayNames || {}) };
+    if (displayName?.trim()) next[groupId] = displayName.trim();
+    else delete next[groupId];
     const updatedLevel: Level = {
       ...currentLevel,
       groupDisplayNames: Object.keys(next).length ? next : undefined,
@@ -941,7 +945,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   removeTilesInRange: (minCellX, minCellY, maxCellX, maxCellY) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot remove tiles: no current level', {
         component: 'EditorStore',
@@ -1026,7 +1030,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
   
   updateLevel: (updates) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) {
       logger.warn('Cannot update level: no current level', {
         component: 'EditorStore',
@@ -1119,7 +1123,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setFillPatternAtCell: (fillPatternId, cellX, cellY) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel?.tileGrid) {
       logger.warn('Cannot set fill pattern: no current level', {
         component: 'EditorStore',
@@ -1134,7 +1138,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       component: 'EditorStore',
       operation: 'setFillPatternAtCell',
       levelId: currentLevel.id,
-      fillPatternId,
+      fillPatternId: fillPatternId ?? '',
       cellX,
       cellY,
     });
@@ -1150,7 +1154,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setFillPatternOnGroup: (fillPatternId, group) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel?.tileGrid) {
       logger.warn('Cannot set fill pattern on group: no current level', {
         component: 'EditorStore',
@@ -1165,7 +1169,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       component: 'EditorStore',
       operation: 'setFillPatternOnGroup',
       levelId: currentLevel.id,
-      fillPatternId,
+      fillPatternId: fillPatternId ?? '',
       cellCount: group.length,
     });
 
@@ -1184,7 +1188,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   placePatternAt: (originCellX, originCellY, pattern) => {
-    const { currentLevel, undoStack, redoStack, maxUndoSteps } = get();
+    const { currentLevel, undoStack, maxUndoSteps } = get();
     if (!currentLevel) return;
     const snapshot = structuredClone(currentLevel);
     set({ undoStack: [...undoStack, snapshot].slice(-maxUndoSteps), redoStack: [] });

@@ -115,12 +115,11 @@ export function LevelCanvas() {
   const tileGrid = currentLevel?.tileGrid || [];
   const mapWidthCells = tileGrid[0]?.length || 0;
   const mapHeightCells = tileGrid.length || 0;
-  const mapWidthPixels = mapWidthCells * gridSize * zoom;
   const mapHeightPixels = mapHeightCells * gridSize * zoom;
   const cellSizePixels = gridSize * zoom;
 
   // Get canvas coordinates from mouse event
-  const getCanvasCoordinates = (e: React.MouseEvent<HTMLCanvasElement>): { x: number; y: number } => {
+  const getCanvasCoordinates = (e: React.MouseEvent<Element>): { x: number; y: number } => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
 
@@ -237,8 +236,6 @@ export function LevelCanvas() {
         const isInGroup = selectedTileGroups?.some((g) =>
           g.some((t) => t.cellX === cellX && t.cellY === cellY)
         ) ?? false;
-        const isSelected = isPrimarySelected || isInGroup;
-
         // Convert cell to canvas coordinates
         const canvasPos = cellToCanvas(
           cellX,
