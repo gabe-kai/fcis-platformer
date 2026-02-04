@@ -15,7 +15,7 @@ export type { Level, CreateLevelData, UpdateLevelData, LevelValidationErrors, Ti
 export { createLevel, updateLevel, validateLevel, isLevel } from './Level';
 
 // WorldMap model
-export type { WorldMap, CreateWorldMapData, UpdateWorldMapData, WorldMapValidationErrors, WorldMapLevelNode, WorldMapPath } from './WorldMap';
+export type { WorldMap, CreateWorldMapData, UpdateWorldMapData, WorldMapValidationErrors, WorldMapLevelNode, WorldMapPath, WorldMapPathStop } from './WorldMap';
 export { createWorldMap, updateWorldMap, validateWorldMap, isWorldMap } from './WorldMap';
 
 // Platform model

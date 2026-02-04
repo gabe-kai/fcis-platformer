@@ -1,6 +1,6 @@
-# Manual Testing Plan (Phase 1)
+# Manual Testing Plan (Phase 1 + Phase 2 World Map)
 
-Use this checklist to verify the app works end-to-end before release or merge. Run with the dev server and a fresh browser (or clear site data for a clean IndexedDB state).
+Use this checklist to verify the app works end-to-end before release or merge. Run with the dev server and a fresh browser (or clear site data for a clean IndexedDB state). Sections 1–8 cover Phase 1; Section 9 covers Phase 2 World Map (when on `feature/phase2-world-map` or after merge).
 
 ---
 
@@ -76,6 +76,19 @@ Use this checklist to verify the app works end-to-end before release or merge. R
 
 ---
 
+## 9. World Map (Phase 2 — when available)
+
+- [ ] **World Map card:** On Dashboard, with a game selected, a **World Map** card is visible (e.g. “Draw paths and place level stops on your overworld map (9.5×11)”). If no game is selected, card shows “Select a game first”.
+- [ ] **Open world map:** Click the World Map card → navigate to `/game/[gameId]/worldmap`. World Map Editor loads (header: “World Map: World Map 1”, Save, Back to Dashboard).
+- [ ] **Canvas and map size:** A large canvas is shown; map uses 9.5×11 proportion (default 950×1100 logical units). Background is dark; no grid (continuous space).
+- [ ] **Pan:** Drag on the canvas (e.g. left mouse) → view pans. Cursor shows grab/grabbing.
+- [ ] **Zoom:** Use mouse wheel on the canvas → zoom in/out, centered on cursor. Scale is clamped (e.g. 0.1–4).
+- [ ] **Save:** Click **Save** → status shows “Saving…” then “✓ Saved”. Press **Ctrl+S** (or Cmd+S) → same behavior.
+- [ ] **Back to Dashboard:** Click **Back to Dashboard** → return to `/` with the same game selected.
+- [ ] **Persistence:** Open world map again (same game) → same map loads; pan/zoom state is not persisted (viewport resets), map data is.
+
+---
+
 ## Quick smoke (minimal path)
 
 If time is short, run this minimal path:
@@ -88,6 +101,6 @@ If time is short, run this minimal path:
 
 ---
 
-**Document version:** 1.1  
+**Document version:** 1.2  
 **Last updated:** 2026-01-31  
-**Phase:** 1 (Core Foundation)
+**Phase:** 1 (Core Foundation) + Phase 2 World Map (Section 9)

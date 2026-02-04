@@ -11,6 +11,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { ChangePasswordModal } from '@/components/auth/ChangePasswordModal';
 import { LevelEditor } from '@/components/level-editor/LevelEditor';
 import { LevelBrowser } from '@/components/level-editor/LevelBrowser';
+import { WorldMapEditor } from '@/components/world-map-editor/WorldMapEditor';
 import { storageService, isQuotaExceededError } from '@/services/storageService';
 import type { StorageBreakdown } from '@/services/storageService';
 import './App.css';
@@ -80,6 +81,10 @@ function Dashboard() {
 
   const handleOpenLevelBrowser = () => {
     navigate('/levels');
+  };
+
+  const handleOpenWorldMap = () => {
+    if (currentGame?.id) navigate(`/game/${currentGame.id}/worldmap`);
   };
 
   const handleCreateGame = async () => {
@@ -303,6 +308,17 @@ function Dashboard() {
                 <p>Use the level editor to create amazing platformer levels</p>
                 <p className="feature-action">Click to browse levels!</p>
               </div>
+              <div
+                className="feature-card clickable"
+                onClick={handleOpenWorldMap}
+                style={{ opacity: currentGame ? 1 : 0.6 }}
+              >
+                <h3>World Map</h3>
+                <p>Draw paths and place level stops on your overworld map (9.5×11)</p>
+                <p className="feature-action">
+                  {currentGame ? 'Click to edit world map!' : 'Select a game first'}
+                </p>
+              </div>
               <div className="feature-card">
                 <h3>Share & Play</h3>
                 <p>Share your games with friends and play together</p>
@@ -370,6 +386,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <LevelEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/game/:gameId/worldmap"
+            element={
+              <ProtectedRoute>
+                <WorldMapEditor />
               </ProtectedRoute>
             }
           />

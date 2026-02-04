@@ -2,15 +2,33 @@ import { logger } from '@/utils/logger';
 import type { Point } from '@/types';
 
 /**
- * Path connection between levels on world map
+ * Stop along a path: position t (0–1) and optional level assignment.
+ * Order of stops defines progression along the path (start → end).
+ */
+export interface WorldMapPathStop {
+  id: string;
+  /** Position along path curve, 0 ≤ t ≤ 1 */
+  t: number;
+  /** If set, this stop is a level; otherwise a waypoint */
+  levelId?: string;
+}
+
+/**
+ * Path on world map: Bezier curve with ordered stops (levels/waypoints) along it.
+ * Default map proportion 9.5×11 inch (950×1100 units at 100/in) for drawing/scanning.
  */
 export interface WorldMapPath {
   id: string;
-  fromLevelId: string;
-  toLevelId: string;
-  controlPoints: Point[]; // Bezier curve control points
+  /** Bezier control points (2 = line, 3 = quadratic, 4 = cubic) */
+  controlPoints: Point[];
+  /** Ordered stops along the path. Default [] for backward compatibility. */
+  stops?: WorldMapPathStop[];
   color?: string;
   thickness?: number;
+  /** @deprecated Use stops[].levelId instead. Kept for backward compatibility. */
+  fromLevelId?: string;
+  /** @deprecated Use stops[].levelId instead. Kept for backward compatibility. */
+  toLevelId?: string;
 }
 
 /**
@@ -131,12 +149,13 @@ export function createWorldMap(data: CreateWorldMapData): WorldMap {
   }
 
   const now = Date.now();
+  // Default 9.5×11 inch proportion (100 logical units per inch) for drawing/scanning
   const worldMap: WorldMap = {
     id: data.id || `worldmap_${now}_${Math.random().toString(36).substring(2, 9)}`,
     gameId: data.gameId.trim(),
     title: data.title.trim(),
-    width: data.width || 5000,
-    height: data.height || 5000,
+    width: data.width ?? 950,
+    height: data.height ?? 1100,
     levelNodes: [],
     paths: [],
     createdAt: now,

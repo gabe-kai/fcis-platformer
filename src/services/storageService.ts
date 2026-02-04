@@ -50,6 +50,7 @@ export interface StorageService {
   // WorldMap operations
   saveWorldMap(worldMap: WorldMap): Promise<void>;
   loadWorldMap(worldMapId: string): Promise<WorldMap | null>;
+  listWorldMapsByGameId(gameId: string): Promise<WorldMap[]>;
   deleteWorldMap(worldMapId: string): Promise<void>;
 
   // Graphic operations
@@ -408,6 +409,17 @@ class StorageServiceImpl implements StorageService {
       return await this.get<WorldMap>(STORE_NAMES.WORLDMAPS, worldMapId);
     } catch (error) {
       logger.error('Failed to load world map', { component: 'StorageService', operation: 'loadWorldMap', worldMapId }, { error: error instanceof Error ? error.message : String(error) });
+      throw error;
+    }
+  }
+
+  async listWorldMapsByGameId(gameId: string): Promise<WorldMap[]> {
+    logger.debug('Listing world maps by game', { component: 'StorageService', operation: 'listWorldMapsByGameId', gameId });
+    try {
+      const all = await this.getAll<WorldMap>(STORE_NAMES.WORLDMAPS);
+      return all.filter((m) => m.gameId === gameId);
+    } catch (error) {
+      logger.error('Failed to list world maps', { component: 'StorageService', operation: 'listWorldMapsByGameId', gameId }, { error: error instanceof Error ? error.message : String(error) });
       throw error;
     }
   }

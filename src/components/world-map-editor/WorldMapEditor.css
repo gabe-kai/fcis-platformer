@@ -1,0 +1,94 @@
+.world-map-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+.world-map-editor-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.world-map-editor-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.world-map-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.world-map-editor-actions button {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #1a1a2e;
+  color: #e0e0e0;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.world-map-editor-actions button:hover {
+  background: #0f3460;
+}
+
+.world-map-editor-actions button.primary {
+  background: #e94560;
+  border-color: #e94560;
+  color: #fff;
+}
+
+.world-map-editor-actions button.primary:hover {
+  background: #c73e54;
+}
+
+.world-map-editor-save-status {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.world-map-editor-save-status.saved {
+  color: #4ade80;
+}
+
+.world-map-editor-save-status.error {
+  color: #f87171;
+}
+
+.world-map-editor-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.world-map-editor-loading,
+.world-map-editor-error {
+  padding: 2rem;
+  text-align: center;
+  color: #888;
+}
+
+.world-map-editor-error {
+  color: #f87171;
+}
+
+.world-map-editor-error button {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  color: #e0e0e0;
+  cursor: pointer;
+}
