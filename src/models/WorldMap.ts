@@ -15,7 +15,7 @@ export interface WorldMapPathStop {
 
 /**
  * Path on world map: Bezier curve with ordered stops (levels/waypoints) along it.
- * Default map proportion 9.5×11 inch (950×1100 units at 100/in) for drawing/scanning.
+ * Default map proportion 8.5×11 inch (850×1100 units at 100/in) for drawing/scanning.
  */
 export interface WorldMapPath {
   id: string;
@@ -149,12 +149,12 @@ export function createWorldMap(data: CreateWorldMapData): WorldMap {
   }
 
   const now = Date.now();
-  // Default 9.5×11 inch proportion (100 logical units per inch) for drawing/scanning
+  // Default 8.5×11 inch proportion (100 logical units per inch) for drawing/scanning
   const worldMap: WorldMap = {
     id: data.id || `worldmap_${now}_${Math.random().toString(36).substring(2, 9)}`,
     gameId: data.gameId.trim(),
     title: data.title.trim(),
-    width: data.width ?? 950,
+    width: data.width ?? 850,
     height: data.height ?? 1100,
     levelNodes: [],
     paths: [],

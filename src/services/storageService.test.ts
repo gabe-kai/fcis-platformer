@@ -329,7 +329,7 @@ describe('StorageService - IndexedDB Operations', () => {
       expect(loaded?.id).toBe(map.id);
       expect(loaded?.title).toBe('World 1');
       expect(loaded?.gameId).toBe('game-1');
-      expect(loaded?.width).toBe(950);
+      expect(loaded?.width).toBe(850);
       expect(loaded?.height).toBe(1100);
     });
 

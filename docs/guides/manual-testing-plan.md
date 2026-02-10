@@ -78,14 +78,22 @@ Use this checklist to verify the app works end-to-end before release or merge. R
 
 ## 9. World Map (Phase 2 — when available)
 
-- [ ] **World Map card:** On Dashboard, with a game selected, a **World Map** card is visible (e.g. “Draw paths and place level stops on your overworld map (9.5×11)”). If no game is selected, card shows “Select a game first”.
+- [ ] **World Map card:** On Dashboard, with a game selected, a **World Map** card is visible (e.g. “Draw paths and place level stops on your overworld map (8.5×11)”). If no game is selected, card shows “Select a game first”.
 - [ ] **Open world map:** Click the World Map card → navigate to `/game/[gameId]/worldmap`. World Map Editor loads (header: “World Map: World Map 1”, Save, Back to Dashboard).
-- [ ] **Canvas and map size:** A large canvas is shown; map uses 9.5×11 proportion (default 950×1100 logical units). Background is dark; no grid (continuous space).
-- [ ] **Pan:** Drag on the canvas (e.g. left mouse) → view pans. Cursor shows grab/grabbing.
+- [ ] **Canvas and map size:** A large canvas fills the content area; map uses 8.5×11 proportion (default 850×1100 logical units, portrait). **Portrait** / **Landscape** buttons set page to 850×1100 or 1100×850. Background is dark; no grid (continuous space).
+- [ ] **Pan:** Drag on the canvas (e.g. left mouse) → view pans (drag right → map moves right). **Invert pan** checkbox flips pan direction. Cursor shows grab/grabbing.
 - [ ] **Zoom:** Use mouse wheel on the canvas → zoom in/out, centered on cursor. Scale is clamped (e.g. 0.1–4).
 - [ ] **Save:** Click **Save** → status shows “Saving…” then “✓ Saved”. Press **Ctrl+S** (or Cmd+S) → same behavior.
 - [ ] **Back to Dashboard:** Click **Back to Dashboard** → return to `/` with the same game selected.
 - [ ] **Persistence:** Open world map again (same game) → same map loads; pan/zoom state is not persisted (viewport resets), map data is.
+- [ ] **Add path:** Click **Add path** in the toolbar → click on the canvas to place control points (at least 2). Click **Finish path** → a path appears (line or curve). Tool returns to Select.
+- [ ] **Select path:** With **Select** tool, click **anywhere on a path** (within the curve) → path is selected. Path toolbar appears with **Edit path** / **Place stop** toggle, Color, Thickness, Add stop, **Deselect**, Delete path. Selected path shows a subtle drop shadow and glow.
+- [ ] **Edit path vs Place stop:** With path selected, **Place stop** (default): path shows **stops** (green dots), no control-point handles. Switch to **Edit path**: path shows **control points/handles** (orange), stops are hidden. Right-click “Add control point” / “Remove point” only in Edit path mode.
+- [ ] **Deselect:** With a path (or stop) selected, click **Deselect** → selection clears, toolbar rows hide, canvas resizes to fill space.
+- [ ] **Stops:** With path selected and **Place stop** mode, click **Add stop** → first stop at 50%; add another → new stop at midpoint of largest gap. Select a stop → Stop toolbar: Position (t) with ‹ › buttons (0.5% steps) and slider; Level dropdown; Remove stop; “Open in Level Editor” when level assigned. Drag a stop on the path → t updates. **Levels** panel (right): lists game levels; with a stop selected, click a level to assign/unassign.
+- [ ] **Edit path:** In **Edit path** mode, drag a control point handle → path shape updates. Change color or thickness in the panel → path updates. Right-click on curve → “Add control point”; right-click handle (path with 4+ points) → “Remove point”.
+- [ ] **Delete path:** With a path selected, click **Delete path** → path is removed. Toolbar closes.
+- [ ] **Multiple paths:** Add several paths (Add path → place points → Finish path; repeat). All paths and their stops persist after Save and reload.
 
 ---
 

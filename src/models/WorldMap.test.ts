@@ -38,7 +38,7 @@ describe('WorldMap Model', () => {
       const worldMap = createWorldMap(data);
       expect(worldMap.title).toBe('World Map 1');
       expect(worldMap.gameId).toBe('game-123');
-      expect(worldMap.width).toBe(950);
+      expect(worldMap.width).toBe(850);
       expect(worldMap.height).toBe(1100);
       expect(worldMap.levelNodes).toEqual([]);
       expect(worldMap.paths).toEqual([]);

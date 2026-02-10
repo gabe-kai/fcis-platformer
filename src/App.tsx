@@ -314,7 +314,7 @@ function Dashboard() {
                 style={{ opacity: currentGame ? 1 : 0.6 }}
               >
                 <h3>World Map</h3>
-                <p>Draw paths and place level stops on your overworld map (9.5×11)</p>
+                <p>Draw paths and place level stops on your overworld map (8.5×11)</p>
                 <p className="feature-action">
                   {currentGame ? 'Click to edit world map!' : 'Select a game first'}
                 </p>

@@ -9,6 +9,7 @@ This directory contains documentation for the First Cat In Space Platformer Game
   - `implementation-plan.md` - High-level implementation plan with development phases
   - `phase1-detailed-plan.md` - Detailed Phase 1 implementation with per-task branches (includes current status)
   - `phase2-world-map-detailed-plan.md` - Phase 2 World Map System: detailed implementation plan (editor shell, level placement, paths, layers, integration), data model, branches, testing
+  - `world-map-path-drawing-implementation.md` - Path drawing implementation reference: anchor+handle layout, store state (first/last committed angles), wheel behavior, canvas drawing, re-do checklist
   - `manual-testing-plan.md` - End-to-end manual testing checklist for Phase 1 (sign-in, editor, save, storage, build)
   - `developer-guide.md` - Developer workflow guide for working with Cursor AI
   - `logging-guide.md` - Unified logging strategy and guidelines
@@ -57,6 +58,8 @@ The [Phase 2 world map detailed plan](guides/phase2-world-map-detailed-plan.md) 
 - Map layers (draw order, visibility toggles)
 - Integration (dashboard entry, open level, performance)
 - Per-task branches, development steps, logging, testing, and commit templates
+
+**Path drawing in depth:** The [World Map Path Drawing — Implementation Reference](guides/world-map-path-drawing-implementation.md) documents the anchor+handle path UX, store state (`firstAnchorOutAngle`, `lastAnchorCommittedOutAngle`), wheel-only-affects-next-point behavior, and a re-do checklist. Use it when re-implementing or debugging path drawing. **Later to-do:** path smoothing at interior anchors (see doc §9).
 
 ### Phase 1 Status (see phase1-detailed-plan.md)
 - All 5 tasks complete: Project Setup, User Authentication, Data Models, Basic Level Editor, Local Storage.

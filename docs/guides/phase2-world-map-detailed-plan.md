@@ -1,8 +1,10 @@
 # Phase 2: World Map System — Detailed Implementation Plan
 
-**Last Updated:** January 31, 2026  
-**Status:** In progress — Commit 1 done  
+**Last Updated:** February 10, 2026  
+**Status:** In progress — Commit 1, 2 & 3 done; Commit 4 (layers, integration, polish) next.  
 **Goal:** Enable world map creation and level organization in a platformer-style overworld (Mario, Sonic, Metroid): paths first, then level stops along paths. Designed for kids to draw maps on paper (9.5×11 in), scan them, and overlay paths and levels.
+
+**Current status & next steps:** Editor shell (route, store, canvas, pan/zoom, save/load, 9.5×11), path drawing (Bezier, draw path, edit control points, anchor+handle UX, right-click add/remove point, color/thickness, delete path), **Commit 1.6** background image upload/crop/place (BackgroundImagePlacementModal), and **Commit 3** stops along paths are implemented. Stops: add at path end, select/drag to move t, remove stop, assign level from game’s levels (dropdown), “Open in Level Editor” when a stop has a level. **Recent UX:** Edit path / Place stop toggle; click-anywhere-on-path (36px); Deselect; selected path shadow/glow; new stops 50% then midpoint of largest gap (getNextStopT); Position t 0.5% steps; Levels panel; path+stop toolbars one row with wrap; canvas resize on toolbar change. **Next:** Commit 4 — layers, integration & polish; see Suggested next steps below.
 
 **Estimated Duration:** 3–4 weeks
 
@@ -23,6 +25,8 @@
 11. [Testing Strategy](#testing-strategy)
 12. [Gaps & Edge Cases](#gaps--edge-cases)
 13. [Document History](#document-history)
+
+**Path drawing implementation detail:** See [World Map Path Drawing — Implementation Reference](./world-map-path-drawing-implementation.md) for full documentation of anchor+handle state, wheel behavior, line segments per curve (16 hard-coded), right-click hit thresholds, and re-do checklist.
 
 ---
 
@@ -183,7 +187,7 @@ Route, empty canvas, pan/zoom, load/save, default 9.5×11, optional background. 
 
 - [x] Add route in `App.tsx`: e.g. `/game/:gameId/worldmap` — resolve or create world map for that game, then show editor.
 - [x] Dashboard: when a game is selected, show “World map” (or “Edit world map”). Click → create map if none exists (`createWorldMap({ gameId, title: 'World Map 1' })`, save), then navigate to editor.
-- [ ] Create `WorldMapEditor` component: header (title, Save, Back to Dashboard), content area for canvas. Load map in `useEffect` from route params.
+- [x] Create `WorldMapEditor` component: header (title, Save, Back to Dashboard), content area for canvas. Load map in `useEffect` from route params.
 
 #### 1.3 World map store
 
@@ -200,7 +204,7 @@ Route, empty canvas, pan/zoom, load/save, default 9.5×11, optional background. 
 
 #### 1.6 Background image (scan)
 
-- [ ] Allow upload/crop/place for background (canvas already draws backgroundImageUrl when set). (reuse level-editor pattern). Store in `worldMap.backgroundImageUrl`. Draw under everything. Supports “draw on paper, scan, then overlay paths” workflow.
+- [x] Allow upload/crop/place for background (canvas already draws backgroundImageUrl when set). (reuse level-editor pattern). Store in `worldMap.backgroundImageUrl`. Draw under everything. Supports “draw on paper, scan, then overlay paths” workflow. Implemented via BackgroundImagePlacementModal in WorldMapEditor.
 
 ### Testing
 
@@ -227,33 +231,34 @@ feat(world-map): editor shell with 9.5×11 default and pan/zoom
 
 Draw one or more Bezier paths: create path (place control points), edit control points, color/thickness, delete path. No stops yet.
 
+**Implementation reference:** The path-drawing UX (anchor+handle layout, wheel-only-affects-next-point, first vs last committed angles, 16 line segments per curve segment, 48 px right-click threshold for “Add control point”) is documented in **[World Map Path Drawing — Implementation Reference](./world-map-path-drawing-implementation.md)**. Use that doc when re-doing or extending path drawing.
+
 ### Development Steps
 
 #### 2.1 Bezier utilities
 
-- [ ] Create `src/utils/bezier.ts`:
-  - `evaluateQuadratic(p0, p1, p2, t): Point`, `evaluateCubic(p0, p1, p2, p3, t): Point`.
+- [x] Create `src/utils/bezier.ts`:
+  - `evaluateQuadratic(p0, p1, p2, t): Point`, `evaluateCubic(p0, p1, p2, p3, t): Point`, `evaluateCurve(controlPoints, t)`.
   - `distanceToCurve(point, controlPoints): number` (sample curve, min distance) for hit-test.
-  - Optional: `arcLength(controlPoints, numSamples): number` and `tFromArcLength(controlPoints, targetLength)` for placing stops by distance later.
-- [ ] Support 2 points (line), 3 (quadratic), 4 (cubic). More points = poly-Bezier (multiple segments).
+- [x] Support 2 points (line), 3 (quadratic), 4 (cubic). More points = poly-Bezier (cubic segments).
 
 #### 2.2 Path creation
 
-- [ ] Tool: “Add path” or “Draw path”. User clicks to place control points (e.g. 2 for line, 4 for cubic). On “finish” (double-click or button), create `WorldMapPath`: unique id, `controlPoints`, `stops: []`, default color/thickness. Append to `worldMap.paths`, save.
-- [ ] Draw path on canvas (world→screen). Below stops (when added in Commit 3).
+- [x] Tool: “Add path” or “Draw path”. User clicks to place control points (e.g. 2 for line, 4 for cubic). On “finish” (double-click or button), create `WorldMapPath`: unique id, `controlPoints`, `stops: []`, default color/thickness. Append to `worldMap.paths`, save.
+- [x] Draw path on canvas (world→screen). Below stops (when added in Commit 3).
 
 #### 2.3 Path editing
 
-- [ ] Select path: click on curve (hit-test). Show control points as draggable handles. Drag handle → update `controlPoints` in store, re-render. Optional: add control point (insert midpoint), remove control point.
-- [ ] Properties panel when path selected: color picker, thickness; “Delete path” button. Log add/edit/delete at INFO.
+- [x] Select path: click on curve (hit-test). Show control points as draggable handles. Drag handle → update `controlPoints` in store, re-render. Optional: add control point (insert midpoint), remove control point.
+- [x] Properties panel when path selected: color picker, thickness; “Delete path” button. Log add/edit/delete at INFO.
 
 #### 2.4 Multiple paths
 
-- [ ] User can create several paths (e.g. main route + branch). Each path independent. Draw order: by array index or z-order (later).
+- [x] User can create several paths (e.g. main route + branch). Each path independent. Draw order: by array index.
 
 ### Testing
 
-- [ ] Unit: bezier.ts (evaluate, distanceToCurve). Store: addPath, updatePathControlPoints, removePath.
+- [x] Unit: bezier.ts (evaluate, distanceToCurve). Store: addPath, updatePathControlPoints, updatePathStyle, removePath.
 - [ ] Integration: create path, edit, change color/thickness, save and reload.
 - [ ] Manual: draw multiple paths, edit curves, delete one.
 
@@ -280,32 +285,32 @@ Add, remove, and move stops along a path; assign a level to a stop; draw stops o
 
 #### 3.1 Path stop model
 
-- [ ] Ensure `WorldMapPathStop` exists: `id`, `t` (0–1), `levelId?`. Path has `stops: WorldMapPathStop[]` (ordered by `t`). Update `WorldMap.ts` and `createWorldMap`/`updateWorldMap` if not done in Commit 1.
+- [x] Ensure `WorldMapPathStop` exists: `id`, `t` (0–1), `levelId?`. Path has `stops: WorldMapPathStop[]` (ordered by `t`). Update `WorldMap.ts` and `createWorldMap`/`updateWorldMap` if not done in Commit 1.
 
 #### 3.2 Add stop along path
 
 - [ ] “Add stop” on selected path: choose `t` (e.g. click on path to pick position, or “add at end” t=1). Create stop with unique id, `t`, `levelId: undefined`. Insert into path.stops, sort by `t`, save.
-- [ ] Draw stop as dot/circle at position = evaluateBezier(path.controlPoints, stop.t). Draw stops above path stroke.
+- [x] Draw stop as dot/circle at position = evaluateBezier(path.controlPoints, stop.t). Draw stops above path stroke.
 
 #### 3.3 Move and remove stop
 
-- [ ] Select stop (click on dot). Drag along path: change `t` (project mouse move onto curve, or slider in panel). Remove stop: button in panel; remove from path.stops, save. When removing stop, if it had levelId, paths referencing that level are unchanged (level still exists; only stop is removed).
+- [x] Select stop (click on dot). Drag along path: change `t` (project mouse move onto curve, or slider in panel). Remove stop: button in panel; remove from path.stops, save. When removing stop, if it had levelId, paths referencing that level are unchanged (level still exists; only stop is removed).
 
 #### 3.4 Assign level to stop
 
-- [ ] When stop selected, show “Assign level” or level dropdown: list levels from `storageService.listLevels(gameId)`. On select, set stop.levelId. Validate: level must belong to current game. Optional: allow “Unassign” (clear levelId). Display level title on stop (label or tooltip).
+- [x] When stop selected, show “Assign level” or level dropdown: list levels from `storageService.listLevels(gameId)`. On select, set stop.levelId. Validate: level must belong to current game. Optional: allow “Unassign” (clear levelId). Display level title on stop (label or tooltip).
 
 #### 3.5 Open in level editor
 
-- [ ] When stop has levelId, show “Open in Level Editor” (or double-click stop). Navigate to `/editor/:levelId`. User can edit level and return to world map.
+- [x] When stop has levelId, show “Open in Level Editor” (or double-click stop). Navigate to `/editor/:levelId`. User can edit level and return to world map.
 
 #### 3.6 Path with no stops
 
-- [ ] Path may have 0 stops (just a decorative or future path). No validation error. Stops can be added later.
+- [x] Path may have 0 stops (just a decorative or future path). No validation error. Stops can be added later.
 
 ### Testing
 
-- [ ] Unit: store addStop, updateStopT, removeStop, assignLevelToStop. Validation: levelId in same game.
+- [x] Unit: store addStopToPath, updateStopT, removeStop, assignLevelToStop (worldMapStore.test.ts). Level dropdown in UI uses listLevels(gameId) so levelId is from current game.
 - [ ] Integration: add stops, assign levels, move stop, remove stop, save and reload; open level from stop.
 - [ ] Manual: draw path, add several stops, assign levels, reorder by moving t, open level.
 
@@ -387,6 +392,10 @@ feat(world-map): layers, integration, and polish
 - **Undo/redo:** Not required for Phase 2; document as future improvement.
 - **Touch/trackpad:** Pan/zoom should work with touch; hit-test and drag for paths/stops should work with touch events.
 
+### Later to-do (post–Commit 2)
+
+- **Path smoothing:** When drawing paths, make the curve smooth (tangent-continuous) at each interior anchor by keeping the previous anchor’s out-handle collinear with the new segment’s in-handle. See [World Map Path Drawing — Implementation Reference](./world-map-path-drawing-implementation.md) §9 Later to-do.
+
 ---
 
 ## Document History
@@ -395,6 +404,20 @@ feat(world-map): layers, integration, and polish
 |---------|------------|-------------------------------------------------------------------------|
 | 1.0     | 2026-01-31 | Initial detailed plan                                                   |
 | 1.1     | 2026-01-31 | 9.5×11 default; path-first workflow; stops along path; single branch with 4 commits; platformer theme; gaps and edge cases |
+| 1.2     | 2026-01-31 | Added later to-do: path smoothing (see path-drawing implementation doc §9). |
+| 1.3     | 2026-01-31 | Implementation reference note: segment count (16) and right-click threshold (48 px). |
+| 1.4     | 2026-01-31 | Status and next steps summary; marked Commit 1.2, 2.2, 2.3 done. |
+| 1.5     | 2026-02-10 | Documented recent UX: Edit/Place stop mode, path selection threshold, deselect, shadow/glow, stop placement (getNextStopT), Levels panel, toolbar row layout, canvas resize. Added Suggested next steps. |
 
-**Document version:** 1.1  
+**Document version:** 1.5  
 **Phase:** 2 (World Map System)
+
+---
+
+## Suggested next steps
+
+1. **Commit 4 (layers, integration, polish)** — From the plan above: layer visibility toggles (background, paths, stops); verify dashboard and navigation; performance (e.g. RequestAnimationFrame, cull/throttle); keyboard (Ctrl+S save, Escape clear selection, optional Delete for path/stop); empty-map hint; manual full-flow test.
+2. **Manual testing** — Run through the [Manual Testing Plan](./manual-testing-plan.md) Section 9 (World Map): open from dashboard, draw path, add stops (confirm 50% then midpoint-of-gap), assign levels, Position t buttons, Edit path vs Place stop, Deselect, Levels panel, save and reload, open level from stop.
+3. **Integration test** — Add an integration test that loads a world map, adds a path, adds stops, assigns levels, saves, reloads, and asserts persisted state (optional; can follow `storageService.test.ts` or level-editor integration pattern).
+4. **Edge cases** — Level deleted but still referenced by a stop (show “Level not found” / unassign); optional legacy migration for `fromLevelId`/`toLevelId` on load.
+5. **Future** — Path smoothing (see path-drawing implementation doc §9); undo/redo; touch/trackpad; WorldMapView (play mode).
