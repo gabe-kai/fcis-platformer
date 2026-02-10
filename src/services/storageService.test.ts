@@ -4,6 +4,7 @@ import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
 import { createLevel, updateLevel } from '@/models/Level';
 import { createPlatform } from '@/models/Platform';
 import { createGame } from '@/models/Game';
+import { createWorldMap } from '@/models/WorldMap';
 import { isQuotaExceededError, type BackgroundImageEntry, type StorageService } from './storageService';
 
 let storageService: StorageService;
@@ -316,6 +317,42 @@ describe('StorageService - IndexedDB Operations', () => {
       await storageService.deleteGame('g1');
       expect(await storageService.loadGame('g1')).toBeNull();
       expect(await storageService.loadGame('g2')).toBeTruthy();
+    });
+  });
+
+  describe('WorldMap operations', () => {
+    it('should save and load world map', async () => {
+      const map = createWorldMap({ gameId: 'game-1', title: 'World 1' });
+      await storageService.saveWorldMap(map);
+      const loaded = await storageService.loadWorldMap(map.id);
+      expect(loaded).toBeTruthy();
+      expect(loaded?.id).toBe(map.id);
+      expect(loaded?.title).toBe('World 1');
+      expect(loaded?.gameId).toBe('game-1');
+      expect(loaded?.width).toBe(850);
+      expect(loaded?.height).toBe(1100);
+    });
+
+    it('should list world maps by gameId', async () => {
+      const map1 = createWorldMap({ gameId: 'game-a', title: 'Map A1' });
+      const map2 = createWorldMap({ gameId: 'game-a', title: 'Map A2' });
+      const map3 = createWorldMap({ gameId: 'game-b', title: 'Map B1' });
+      await storageService.saveWorldMap(map1);
+      await storageService.saveWorldMap(map2);
+      await storageService.saveWorldMap(map3);
+      const listA = await storageService.listWorldMapsByGameId('game-a');
+      const listB = await storageService.listWorldMapsByGameId('game-b');
+      expect(listA).toHaveLength(2);
+      expect(listB).toHaveLength(1);
+      expect(listA.map((m) => m.id).sort()).toEqual([map1.id, map2.id].sort());
+      expect(listB[0].id).toBe(map3.id);
+    });
+
+    it('should delete world map', async () => {
+      const map = createWorldMap({ gameId: 'game-1', title: 'To Delete' });
+      await storageService.saveWorldMap(map);
+      await storageService.deleteWorldMap(map.id);
+      expect(await storageService.loadWorldMap(map.id)).toBeNull();
     });
   });
 

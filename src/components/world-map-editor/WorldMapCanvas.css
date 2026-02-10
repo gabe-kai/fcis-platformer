@@ -1,0 +1,47 @@
+.world-map-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  border: 2px solid #3d4f6b;
+  box-sizing: border-box;
+}
+
+.world-map-canvas-wrap canvas {
+  display: block;
+  cursor: grab;
+}
+
+.world-map-canvas-wrap canvas:active {
+  cursor: grabbing;
+}
+
+.world-map-canvas-context-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 10rem;
+  padding: 0.25rem 0;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.world-map-canvas-context-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #e0e0e0;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.world-map-canvas-context-menu button:hover {
+  background: #0f3460;
+}
